@@ -87,6 +87,13 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 #erreur{color:#a61b1b!important;font-weight:600}
 #info{color:var(--vert)!important;font-weight:600}
 .aide{font-size:14px;color:#4a5468;background:var(--fond);border-radius:12px;padding:10px 12px;margin:16px 0 0}
+#raisons{position:fixed;inset:0;z-index:1100;background:rgba(10,16,28,.45);display:flex;align-items:flex-end}
+#raisons .feuille{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom) + 14px)}
+#raisons h2{margin:2px 0 10px;font-size:18px}
+#raisons .choix{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#raisons .choix button{height:56px;border-radius:12px;border:1px solid var(--trait);background:#fff;font-weight:600;font-size:15px;color:var(--texte)}
+.ligne1 .note{margin-left:auto;flex:none;width:46px;height:46px;border-radius:50%;border:1px solid var(--trait);background:#fff;font-size:20px;color:var(--bleu2)}
+#noteTxt{font-size:14px;color:#8a5a00;margin-top:4px}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 190px);z-index:1200;background:#1d2433;color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 #toast button{background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;height:40px;padding:0 14px;font-weight:700}
 </style>
@@ -107,7 +114,8 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
     <div id="encours">
       <div class="ligne1">
         <span id="num" class="pastille"></span>
-        <div><div id="adresse"></div><div id="infos"></div></div>
+        <div><div id="adresse"></div><div id="infos"></div><div id="noteTxt" hidden></div></div>
+        <button id="btnNote" class="note" type="button" aria-label="Ajouter une note">✎</button>
       </div>
       <div id="distance"></div>
       <div class="actions">
@@ -146,6 +154,14 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
     <button class="bouton primaire" id="btnOuvrirLien" type="button">Ajouter</button>
   </div>
   <p class="aide installer" hidden></p>
+</div>
+
+<div id="raisons" hidden>
+  <div class="feuille">
+    <h2>Pourquoi passer ce numéro ?</h2>
+    <div class="choix"></div>
+    <button type="button" id="raisonsAnnuler" class="bouton">Annuler</button>
+  </div>
 </div>
 
 <div id="toast" hidden><span id="toastTxt"></span><button id="toastAnnuler" type="button">Annuler</button></div>
@@ -190,11 +206,16 @@ function tourneesDuLien(d) {
 }
 // Une tournee deja sur le telephone et renvoyee avec un autre ordre garde ses coches, rattachees a l'adresse.
 function reprendreCoches(prev, t) {
-  if (!prev) return { courant: 0, etats: {} };
-  const parAdresse = new Map(prev.T.p.map((s, i) => [`${s.a}|${s.l}`, prev.E.etats[i]]));
-  const etats = {};
-  t.p.forEach((s, i) => { const e = parAdresse.get(`${s.a}|${s.l}`); if (e) etats[i] = e; });
-  return { courant: 0, etats };
+  if (!prev) return { courant: 0, etats: {}, notes: {} };
+  const cle = s => `${s.a}|${s.l}`;
+  const etats = new Map(prev.T.p.map((s, i) => [cle(s), prev.E.etats[i]]));
+  const notes = new Map(prev.T.p.map((s, i) => [cle(s), (prev.E.notes || {})[i]]));
+  const e = { courant: 0, etats: {}, notes: {} };
+  t.p.forEach((s, i) => {
+    const x = etats.get(cle(s)); if (x) e.etats[i] = x;
+    const n = notes.get(cle(s)); if (n) e.notes[i] = n;
+  });
+  return e;
 }
 async function ouvrirCode(code) {
   const liste = tourneesDuLien(await decoder(code));
@@ -225,7 +246,8 @@ function aideInstaller() {
 
 // Demarrage d'une tournee
 function demarrer(t, e) {
-  T = t; E = e || { courant: 0, etats: {} };
+  T = t; E = e || { courant: 0, etats: {}, notes: {} };
+  if (!E.notes) E.notes = {};
   signale.clear();
   // « Vous y êtes » : au plus la moitie de l'ecart avec l'immeuble voisin le plus proche (entre 12 et 35 m)
   seuils = T.p.map((s, i) => {
@@ -290,6 +312,9 @@ function majFiche() {
   $('#num').textContent = E.courant + 1;
   $('#adresse').textContent = s.a;
   $('#infos').textContent = `${s.l}, ${pluriel(s.b, 'propriétaire')}`;
+  const note = E.notes[E.courant];
+  $('#noteTxt').textContent = note ? `✎ ${note}` : '';
+  $('#noteTxt').hidden = !note;
   $('#btnGuider').href = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking&dir_action=navigate`;
   majDistance();
 }
@@ -309,16 +334,17 @@ function majDistance() {
   }
 }
 
-function marquer(statut) {
+function marquer(statut, raison) {
   const i = E.courant;
   if (i == null) return;
   E.etats[i] = { s: statut, t: new Date().toISOString() };
+  if (raison) E.etats[i].r = raison;
   const nx = prochain(i);
   E.courant = nx;
   if (navigator.vibrate) navigator.vibrate(statut === 'depose' ? 60 : [30, 40, 30]);
   majTout();
   if (nx != null && suivre === false) carte.panTo([T.p[nx].lat, T.p[nx].lon]);
-  toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : 'passé'}`, () => { delete E.etats[i]; E.courant = i; majTout(); });
+  toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => { delete E.etats[i]; E.courant = i; majTout(); });
 }
 
 function toast(txt, annuler) {
@@ -394,8 +420,8 @@ function majListe() {
     const li = document.createElement('li');
     li.className = st || (i === E.courant ? 'courant' : '');
     const n = document.createElement('span'); n.className = 'n'; n.textContent = st === 'depose' ? '✓' : i + 1;
-    const a = document.createElement('span'); a.className = 'a'; a.textContent = s.a;
-    const b = document.createElement('span'); b.className = 'b'; b.textContent = st === 'passe' ? 'passé' : s.b;
+    const a = document.createElement('span'); a.className = 'a'; a.textContent = s.a + (E.notes[i] ? ' ✎' : '');
+    const b = document.createElement('span'); b.className = 'b'; b.textContent = st === 'passe' ? (E.etats[i].r || 'passé') : s.b;
     li.append(n, a, b);
     li.onclick = () => {
       if (st && !confirm(`Remettre le n° ${i + 1} à faire ?`)) return;
@@ -409,13 +435,20 @@ function bilan() {
   const dep = [], pas = [], reste = [];
   T.p.forEach((_, i) => (etatDe(i) === 'depose' ? dep : etatDe(i) === 'passe' ? pas : reste).push(i));
   const proprios = dep.reduce((s, i) => s + T.p[i].b, 0);
-  return [
+  const notes = Object.entries(E.notes || {}).filter(([, t]) => t);
+  const lignes = [
     `Bilan tournée ${T.nom} (${T.id})`,
     `Déposé : ${pluriel(dep.length, 'immeuble')}, ${pluriel(proprios, 'propriétaire')}`,
-    `Passé : ${pas.length}${pas.length ? ' (n° ' + pas.map(i => i + 1).join(', ') + ')' : ''}`,
+    `Passé : ${pas.length}${pas.length ? ' (' + pas.map(i => `n° ${i + 1} ${E.etats[i].r || 'sans raison'}`).join(', ') + ')' : ''}`,
     `Reste : ${reste.length}${reste.length ? ' (n° ' + reste.map(i => i + 1).join(', ') + ')' : ''}`,
-    `Fiches CRM déposées : ${dep.flatMap(i => T.p[i].u).join(',')}`,
-  ].join('\n');
+  ];
+  if (notes.length) lignes.push('Notes : ' + notes.map(([i, t]) => `n° ${+i + 1} ${T.p[i].a} : ${t}`).join(' ; '));
+  // Ligne de données reprise telle quelle par Claude pour mettre le CRM à jour.
+  const donnees = { tournee: T.id, depose: dep.flatMap(i => T.p[i].u), passe: {}, notes: [] };
+  pas.forEach(i => { const r = E.etats[i].r || 'Sans raison'; (donnees.passe[r] = donnees.passe[r] || []).push(...T.p[i].u); });
+  notes.forEach(([i, t]) => donnees.notes.push({ adresse: T.p[i].a, texte: t, uids: T.p[i].u }));
+  lignes.push('', 'Pour le CRM : ' + JSON.stringify(donnees));
+  return lignes.join('\n');
 }
 async function envoyerBilan() {
   const txt = bilan();
@@ -447,9 +480,25 @@ function accueil(erreur, info) {
 }
 
 $('#btnDepose').onclick = () => marquer('depose');
-$('#btnPasser').onclick = () => marquer('passe');
+// « Passer » demande une raison : elle revient dans le bilan et dans le CRM.
+const RAISONS = ['Pas de publicité', 'Entrée à code', 'Boîtes pleines', 'Panneau À vendre', 'Immeuble introuvable', 'Autre'];
+RAISONS.forEach(r => {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = r;
+  b.onclick = () => { $('#raisons').hidden = true; marquer('passe', r); };
+  $('#raisons .choix').appendChild(b);
+});
+$('#btnPasser').onclick = () => { if (E && E.courant != null) $('#raisons').hidden = false; };
+$('#raisonsAnnuler').onclick = () => { $('#raisons').hidden = true; };
+$('#btnNote').onclick = () => {
+  const i = E && E.courant;
+  if (i == null) return;
+  const texte = prompt(`Note pour le n° ${i + 1} (${T.p[i].a})`, E.notes[i] || '');
+  if (texte === null) return;
+  if (texte.trim()) E.notes[i] = texte.trim(); else delete E.notes[i];
+  majTout();
+};
 $('#btnSuivre').onclick = () => regleSuivi(!suivre);
-$('#btnListe').onclick = () => { majListe(); aideInstaller(); $('#bilanTexte').hidden = true; $('#liste').hidden = false; };
+$('#btnListe').onclick = () => { majListe(); aideInstaller(); $('#toast').hidden = true; $('#bilanTexte').hidden = true; $('#liste').hidden = false; };
 $('#btnFermer').onclick = () => { $('#liste').hidden = true; setTimeout(() => carte && carte.invalidateSize(), 50); };
 $('#btnBilan').onclick = envoyerBilan;
 $('#btnFinBilan').onclick = envoyerBilan;
