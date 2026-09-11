@@ -39,9 +39,8 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 .pastille{flex:none;width:44px;height:44px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}
 #adresse{font-weight:700;font-size:19px;line-height:1.2}
 #infos{font-size:14px;color:#4a5468;margin-top:2px}
-#direction{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:16px;font-weight:600;color:var(--bleu2)}
-#fiche.arrive #direction{color:var(--vert)}
-#fleche{display:inline-block;font-size:22px}
+#distance{margin:10px 0;font-size:16px;font-weight:600;color:var(--bleu2)}
+#fiche.arrive #distance{color:var(--vert)}
 .actions{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px}
 .actions>*{height:56px;border-radius:12px;font-weight:700;font-size:17px;display:grid;place-items:center;text-decoration:none;border:2px solid transparent}
 .secondaire{background:#fff;border-color:var(--trait)!important;color:var(--texte)}
@@ -51,11 +50,13 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 #fin h2{margin:4px 0 6px;font-size:20px}
 #fin p{margin:0 0 12px;color:#4a5468}
 #fin button{width:100%;height:56px;border-radius:12px;border:none}
-.pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px system-ui,sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px system-ui,sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);transition:transform .15s}
 .pin.afaire{background:var(--bleu)}
 .pin.courant{background:var(--orange);transform:scale(1.35)}
 .pin.fait{background:var(--vert)}
 .pin.passe{background:var(--gris)}
+/* Carte dezoomee : les immeubles deviennent de petits points, seul l'immeuble en cours garde son numero */
+.petit .pin:not(.courant){transform:scale(.42);color:transparent}
 #liste,#accueil{position:fixed;inset:0;z-index:1000;background:#fff;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 16px)}
 .entete{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .entete h2{margin:0;font-size:20px}
@@ -78,9 +79,13 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 .coller{display:grid;gap:8px;margin:16px 0}
 .coller label{font-weight:600}
 .coller input{height:52px;border:1px solid var(--trait);border-radius:12px;padding:0 12px;font:inherit;width:100%;min-width:0}
-#sauvees{list-style:none;padding:0;margin:16px 0 0}
-#sauvees li{margin-bottom:8px}
+#tournees{list-style:none;padding:0;margin:16px 0 0}
+#tournees li{margin-bottom:8px}
+#tournees .bouton{height:auto;min-height:56px;padding:8px 14px;text-align:left;place-items:center start;line-height:1.25}
+#tournees .etat{display:block;font-size:13px;font-weight:400;color:#4a5468}
+#tournees .termine{color:var(--gris)}
 #erreur{color:#a61b1b!important;font-weight:600}
+#info{color:var(--vert)!important;font-weight:600}
 .aide{font-size:14px;color:#4a5468;background:var(--fond);border-radius:12px;padding:10px 12px;margin:16px 0 0}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 190px);z-index:1200;background:#1d2433;color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 #toast button{background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;height:40px;padding:0 14px;font-weight:700}
@@ -104,7 +109,7 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
         <span id="num" class="pastille"></span>
         <div><div id="adresse"></div><div id="infos"></div></div>
       </div>
-      <div id="direction"><span id="fleche">↑</span><span id="distance"></span></div>
+      <div id="distance"></div>
       <div class="actions">
         <a id="btnGuider" class="secondaire" target="_blank" rel="noopener">Guider</a>
         <button id="btnPasser" class="secondaire" type="button">Passer</button>
@@ -126,22 +131,20 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
     <button class="primaire" type="button" id="btnBilan">Envoyer le bilan</button>
     <textarea id="bilanTexte" readonly hidden></textarea>
     <button type="button" id="btnQuitter">Changer de tournée</button>
-    <button type="button" id="btnRaz">Tout remettre à zéro</button>
   </div>
   <p class="aide installer" hidden></p>
 </div>
 
 <div id="accueil" hidden>
-  <h1>Tournée de boîtage</h1>
-  <p>Ouvrez le lien de tournée préparé depuis le CRM, collez-le ici, ou importez son fichier.</p>
+  <h1>Tournées de boîtage</h1>
   <p id="erreur" hidden></p>
+  <p id="info" hidden></p>
+  <ul id="tournees"></ul>
   <div class="coller">
-    <label for="lienColle">Lien de tournée</label>
+    <label for="lienColle">Ajouter une tournée : collez son lien</label>
     <input id="lienColle" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez le lien ici">
-    <button class="bouton primaire" id="btnOuvrirLien" type="button">Ouvrir la tournée</button>
+    <button class="bouton primaire" id="btnOuvrirLien" type="button">Ajouter</button>
   </div>
-  <label class="bouton">Importer un fichier de tournée<input type="file" id="fichier" accept=".json,application/json" hidden></label>
-  <ul id="sauvees"></ul>
   <p class="aide installer" hidden></p>
 </div>
 
@@ -151,9 +154,10 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 'use strict';
 const $ = s => document.querySelector(s);
 const CLE = 'tournee:', DERNIERE = 'tournee-derniere', TRACE = 'tournee-trace:';
-let T = null, E = null;
+const ZOOM_NUMEROS = 17;
+let T = null, E = null, seuils = [];
 let carte = null, marqueurs = [], trace = null, moi = null, halo = null;
-let suivre = true, derniere = null, watchId = null, verrou = null, toastMinuterie = null;
+let suivre = true, derniere = null, watchId = null, toastMinuterie = null;
 const signale = new Set();
 
 // Stockage local (peut etre indisponible)
@@ -161,41 +165,50 @@ const lire = k => { try { return localStorage.getItem(k); } catch (e) { return n
 const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 function sauver() { ecrire(CLE + T.id, JSON.stringify({ T, E })); ecrire(DERNIERE, T.id); }
 function charger(id) { try { const x = JSON.parse(lire(CLE + id)); return x && x.T ? x : null; } catch (e) { return null; } }
-function sauvees() {
+function toutes() {
   const r = [];
   try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(CLE)) { const x = charger(k.slice(CLE.length)); if (x) r.push(x); } } } catch (e) {}
-  return r;
+  return r.sort((a, b) => (b.T.date || '').localeCompare(a.T.date || '') || a.T.nom.localeCompare(b.T.nom, 'fr'));
 }
 
-// Lien de tournee : #d=<deflate-raw en base64url>. Le fragment n'est jamais envoye au serveur.
+// Lien : #d=<deflate-raw en base64url>, une tournee (v1) ou un lot de tournees (v2).
+// Le fragment n'est jamais envoye au serveur.
 async function decoder(s) {
   const bin = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
   const flux = new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   return JSON.parse(await new Response(flux).text());
 }
 function normaliser(d) {
-  if (!d || d.v !== 1 || !Array.isArray(d.p) || !d.p.length) throw new Error('format');
+  if (!d || !d.id || !Array.isArray(d.p) || !d.p.length) throw new Error('format');
   return { id: String(d.id), nom: String(d.nom || 'Tournée'), date: String(d.date || ''),
     p: d.p.map(x => ({ a: String(x[0]), l: String(x[1] || ''), lat: +x[2], lon: +x[3], b: +x[4] || 0, u: Array.isArray(x[5]) ? x[5] : [] })) };
 }
+function tourneesDuLien(d) {
+  if (d && d.v === 2 && Array.isArray(d.t) && d.t.length) return d.t.map(normaliser);
+  if (d && d.v === 1) return [normaliser(d)];
+  throw new Error('format');
+}
+// Une tournee deja sur le telephone et renvoyee avec un autre ordre garde ses coches, rattachees a l'adresse.
+function reprendreCoches(prev, t) {
+  if (!prev) return { courant: 0, etats: {} };
+  const parAdresse = new Map(prev.T.p.map((s, i) => [`${s.a}|${s.l}`, prev.E.etats[i]]));
+  const etats = {};
+  t.p.forEach((s, i) => { const e = parAdresse.get(`${s.a}|${s.l}`); if (e) etats[i] = e; });
+  return { courant: 0, etats };
+}
 async function ouvrirCode(code) {
-  const t = normaliser(await decoder(code));
-  const prev = charger(t.id);
-  demarrer(t, prev ? prev.E : null);
+  const liste = tourneesDuLien(await decoder(code));
+  for (const t of liste) ecrire(CLE + t.id, JSON.stringify({ T: t, E: reprendreCoches(charger(t.id), t) }));
+  if (liste.length === 1) { const x = charger(liste[0].id); if (x) { demarrer(x.T, x.E); return; } }
+  accueil('', `${liste.length} tournées ajoutées : choisissez celle du jour.`);
 }
 
-// Geometrie
+// Geometrie et textes
 const rad = x => x * Math.PI / 180;
 function distance(a, b) {
   const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
   return 2 * 6371000 * Math.asin(Math.sqrt(h));
 }
-function cap(a, b) {
-  const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
-  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-const POINTS = ['nord', 'nord-est', 'est', 'sud-est', 'sud', 'sud-ouest', 'ouest', 'nord-ouest'];
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 // Installation sur l'ecran d'accueil
@@ -205,7 +218,7 @@ function aideInstaller() {
   const txt = autonome()
     ? 'Nouvelle tournée : copiez son lien, touchez « Changer de tournée » et collez-le.'
     : IOS
-      ? 'Pour l’avoir en appli : touchez le bouton Partager de Safari, puis « Sur l’écran d’accueil ». Ensuite, ouvrez chaque nouvelle tournée en collant son lien dans l’appli.'
+      ? 'Pour l’avoir en appli : touchez le bouton Partager de Safari, puis « Sur l’écran d’accueil ». Ensuite, ajoutez chaque nouvelle tournée en collant son lien dans l’appli.'
       : 'Pour l’avoir en appli : menu ⋮ du navigateur, puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».';
   document.querySelectorAll('.installer').forEach(p => { p.textContent = txt; p.hidden = false; });
 }
@@ -214,20 +227,29 @@ function aideInstaller() {
 function demarrer(t, e) {
   T = t; E = e || { courant: 0, etats: {} };
   signale.clear();
+  // « Vous y êtes » : au plus la moitie de l'ecart avec l'immeuble voisin le plus proche (entre 12 et 35 m)
+  seuils = T.p.map((s, i) => {
+    let voisin = Infinity;
+    T.p.forEach((o, j) => { if (j !== i) voisin = Math.min(voisin, distance(s, o)); });
+    return Math.max(12, Math.min(35, voisin / 2));
+  });
   $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
   $('#titre').textContent = T.nom;
   if (carte) { carte.remove(); carte = null; }
   marqueurs = []; trace = null; moi = null; halo = null;
   carte = L.map('carte', { zoomControl: false });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(carte);
+  carte.on('zoomend', majZoom);
   carte.fitBounds(L.latLngBounds(T.p.map(s => [s.lat, s.lon])).pad(0.12));
   carte.on('dragstart', () => regleSuivi(false));
   trace = L.polyline(T.p.map(s => [s.lat, s.lon]), { color: '#1a57b8', weight: 4, opacity: .5, dashArray: '6 8' }).addTo(carte);
+  majZoom();
   majTout();
   suivrePosition();
   chargerTrace();
   setTimeout(() => carte.invalidateSize(), 50);
 }
+function majZoom() { if (carte) carte.getContainer().classList.toggle('petit', carte.getZoom() < ZOOM_NUMEROS); }
 
 function etatDe(i) { return E.etats[i] ? E.etats[i].s : null; }
 function prochain(depuis) {
@@ -269,24 +291,21 @@ function majFiche() {
   $('#adresse').textContent = s.a;
   $('#infos').textContent = `${s.l}, ${pluriel(s.b, 'propriétaire')}`;
   $('#btnGuider').href = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking&dir_action=navigate`;
-  majDirection();
+  majDistance();
 }
 
-function majDirection() {
+function majDistance() {
   if (!T || E.courant == null || !T.p[E.courant]) return;
   const s = T.p[E.courant];
-  if (!derniere) { $('#distance').textContent = 'Position en attente'; $('#fleche').style.transform = ''; $('#fiche').classList.remove('arrive'); return; }
-  const d = distance(derniere, s), b = cap(derniere, s);
-  const seuil = Math.max(25, Math.min(derniere.acc || 0, 50));
-  const arrive = d <= seuil;
+  if (!derniere) { $('#distance').textContent = 'Position en attente'; $('#fiche').classList.remove('arrive'); return; }
+  const d = distance(derniere, s);
+  const arrive = d <= seuils[E.courant];
   $('#fiche').classList.toggle('arrive', arrive);
-  $('#fleche').style.transform = `rotate(${Math.round(b)}deg)`;
   if (arrive) {
     $('#distance').textContent = 'Vous y êtes';
     if (!signale.has(E.courant)) { signale.add(E.courant); if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }
   } else {
-    const txt = d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`;
-    $('#distance').textContent = `${txt}, direction ${POINTS[Math.round(b / 45) % 8]}`;
+    $('#distance').textContent = d < 1000 ? `À ${Math.round(d)} m` : `À ${(d / 1000).toFixed(1).replace('.', ',')} km`;
   }
 }
 
@@ -331,7 +350,7 @@ function positionner(lat, lon, acc) {
     moi = L.circleMarker([lat, lon], { radius: 8, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1, interactive: false }).addTo(carte);
   } else { moi.setLatLng([lat, lon]); halo.setLatLng([lat, lon]).setRadius(acc || 20); }
   if (suivre) carte.panTo([lat, lon], { animate: true });
-  majDirection();
+  majDistance();
 }
 function regleSuivi(v) {
   suivre = v;
@@ -339,23 +358,26 @@ function regleSuivi(v) {
   if (v && derniere) carte.panTo([derniere.lat, derniere.lon]);
 }
 async function garderEcranAllume() {
-  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') verrou = await navigator.wakeLock.request('screen'); } catch (e) {}
+  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') await navigator.wakeLock.request('screen'); } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && T) garderEcranAllume(); });
 
 // Trace a pied par les rues (itineraire pieton OpenStreetMap), garde en memoire ; ligne droite sinon
 async function chargerTrace() {
   const id = T.id;
+  const coords = T.p.map(s => `${s.lon.toFixed(6)},${s.lat.toFixed(6)}`).join(';');
+  // la cle depend de l'ordre des arrets : un nouvel ordre redemande son trace
+  let h = 5381; for (let i = 0; i < coords.length; i++) h = ((h * 33) ^ coords.charCodeAt(i)) >>> 0;
+  const cle = `${TRACE}${id}:${h.toString(36)}`;
   let geo = null;
-  try { geo = JSON.parse(lire(TRACE + id)); } catch (e) {}
+  try { geo = JSON.parse(lire(cle)); } catch (e) {}
   if (!geo) {
     try {
-      const coords = T.p.map(s => `${s.lon.toFixed(6)},${s.lat.toFixed(6)}`).join(';');
       const r = await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}?overview=full&geometries=geojson`);
       const j = await r.json();
       if (j.code !== 'Ok') return;
       geo = j.routes[0].geometry.coordinates.map(c => [+c[1].toFixed(6), +c[0].toFixed(6)]);
-      ecrire(TRACE + id, JSON.stringify(geo));
+      ecrire(cle, JSON.stringify(geo));
     } catch (e) { return; }
   }
   if (!T || T.id !== id || !carte) return;
@@ -378,7 +400,7 @@ function majListe() {
     li.onclick = () => {
       if (st && !confirm(`Remettre le n° ${i + 1} à faire ?`)) return;
       delete E.etats[i]; E.courant = i; $('#liste').hidden = true; majTout();
-      regleSuivi(false); carte.panTo([s.lat, s.lon]);
+      regleSuivi(false); carte.setView([s.lat, s.lon], Math.max(carte.getZoom(), ZOOM_NUMEROS), { animate: false });
     };
     ul.appendChild(li);
   });
@@ -404,17 +426,21 @@ async function envoyerBilan() {
   $('#liste').hidden = false; $('#bilanTexte').hidden = false; $('#bilanTexte').value = txt; $('#bilanTexte').select();
 }
 
-// Accueil
-function accueil(msg) {
+// Accueil : les tournees du telephone
+function accueil(erreur, info) {
   $('#app').hidden = true; $('#liste').hidden = true; $('#accueil').hidden = false;
-  $('#erreur').textContent = msg || ''; $('#erreur').hidden = !msg;
+  $('#erreur').textContent = erreur || ''; $('#erreur').hidden = !erreur;
+  $('#info').textContent = info || ''; $('#info').hidden = !info;
   aideInstaller();
-  const ul = $('#sauvees'); ul.textContent = '';
-  sauvees().forEach(x => {
+  const ul = $('#tournees'); ul.textContent = '';
+  toutes().forEach(x => {
+    const n = x.T.p.length, traites = x.T.p.filter((_, i) => x.E.etats[i]).length;
     const li = document.createElement('li');
-    const b = document.createElement('button'); b.className = 'bouton'; b.type = 'button';
-    const faits = x.T.p.filter((_, i) => x.E.etats[i]).length;
-    b.textContent = `Reprendre : ${x.T.nom} (${faits}/${x.T.p.length})`;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'bouton' + (traites === n ? ' termine' : '');
+    const titre = document.createElement('span'); titre.textContent = x.T.nom;
+    const etat = document.createElement('span'); etat.className = 'etat';
+    etat.textContent = `${pluriel(n, 'immeuble')}, ${traites === 0 ? 'pas commencée' : traites === n ? 'terminée' : `${traites}/${n} faits`}`;
+    b.append(titre, etat);
     b.onclick = () => demarrer(x.T, x.E);
     li.appendChild(b); ul.appendChild(li);
   });
@@ -428,24 +454,17 @@ $('#btnFermer').onclick = () => { $('#liste').hidden = true; setTimeout(() => ca
 $('#btnBilan').onclick = envoyerBilan;
 $('#btnFinBilan').onclick = envoyerBilan;
 $('#btnQuitter').onclick = () => accueil();
-$('#btnRaz').onclick = () => { if (confirm('Effacer toutes les coches de cette tournée ?')) { E = { courant: 0, etats: {} }; signale.clear(); $('#liste').hidden = true; majTout(); } };
 $('#btnOuvrirLien').onclick = async () => {
   const m = $('#lienColle').value.trim().match(/[#&]d=([A-Za-z0-9_-]+)/);
   if (!m) { accueil('Ce lien ne contient pas de tournée'); return; }
-  try { await ouvrirCode(m[1]); $('#lienColle').value = ''; }
+  try { $('#lienColle').value = ''; await ouvrirCode(m[1]); }
   catch (e) { accueil('Lien de tournée illisible ou incomplet'); }
-};
-$('#fichier').onchange = async ev => {
-  const f = ev.target.files[0]; if (!f) return;
-  try { const t = normaliser(JSON.parse(await f.text())); const prev = charger(t.id); demarrer(t, prev ? prev.E : null); }
-  catch (e) { accueil('Fichier de tournée illisible'); }
-  ev.target.value = '';
 };
 
 // Test sur ordinateur : window.tournee.simuler(lat, lon)
-window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere }) };
+window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere, seuils }) };
 
-// Un lien de tournee peut arriver au chargement ou dans une page deja ouverte (seul le # change).
+// Un lien peut arriver au chargement ou dans une page deja ouverte (seul le # change).
 async function lireLien() {
   const m = location.hash.match(/[#&]d=([^&]+)/);
   if (!m) return false;
