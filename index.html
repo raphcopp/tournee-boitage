@@ -96,6 +96,12 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 #noteTxt{font-size:14px;color:#8a5a00;margin-top:4px}
 #toast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 190px);z-index:1200;background:#1d2433;color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 #toast button{background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;height:40px;padding:0 14px;font-weight:700}
+.scan{margin:16px 0 0;height:60px!important;font-size:18px}
+#scanner{position:fixed;inset:0;z-index:1300;background:#000;display:flex;flex-direction:column}
+#scanVideo{flex:1;min-height:0;width:100%;object-fit:cover}
+.viseur{position:absolute;left:50%;top:44%;width:min(74vw,58vh);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35);pointer-events:none}
+#scanTxt{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 16px);margin:0;text-align:center;color:#fff;font-weight:600;text-shadow:0 1px 3px #000}
+.scanActions{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px calc(env(safe-area-inset-bottom) + 14px);background:#000}
 </style>
 </head>
 <body>
@@ -138,6 +144,7 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
   <div class="outils">
     <button class="primaire" type="button" id="btnBilan">Envoyer le bilan</button>
     <textarea id="bilanTexte" readonly hidden></textarea>
+    <button type="button" id="btnScannerListe">Scanner une nouvelle tournée</button>
     <button type="button" id="btnQuitter">Changer de tournée</button>
   </div>
   <p class="aide installer" hidden></p>
@@ -147,11 +154,12 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
   <h1>Tournées de boîtage</h1>
   <p id="erreur" hidden></p>
   <p id="info" hidden></p>
+  <button class="bouton primaire scan" id="btnScanner" type="button">Scanner le QR code d’une tournée</button>
   <ul id="tournees"></ul>
   <div class="coller">
-    <label for="lienColle">Ajouter une tournée : collez son lien</label>
+    <label for="lienColle">Ou collez le lien d’une tournée</label>
     <input id="lienColle" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez le lien ici">
-    <button class="bouton primaire" id="btnOuvrirLien" type="button">Ajouter</button>
+    <button class="bouton" id="btnOuvrirLien" type="button">Ajouter</button>
   </div>
   <p class="aide installer" hidden></p>
 </div>
@@ -165,6 +173,17 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
 </div>
 
 <div id="toast" hidden><span id="toastTxt"></span><button id="toastAnnuler" type="button">Annuler</button></div>
+
+<div id="scanner" hidden>
+  <video id="scanVideo" playsinline muted autoplay></video>
+  <div class="viseur"></div>
+  <p id="scanTxt"></p>
+  <div class="scanActions">
+    <label class="bouton" for="scanPhoto">Prendre une photo</label>
+    <input id="scanPhoto" type="file" accept="image/*" capture="environment" hidden>
+    <button type="button" id="scanAnnuler" class="bouton">Annuler</button>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -237,9 +256,9 @@ const autonome = () => (window.matchMedia && matchMedia('(display-mode: standalo
 const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function aideInstaller() {
   const txt = autonome()
-    ? 'Nouvelle tournée : copiez son lien, touchez « Changer de tournée » et collez-le.'
+    ? 'Nouvelle tournée : touchez « Scanner » et visez le QR code du jour sur l’écran du PC.'
     : IOS
-      ? 'Pour l’avoir en appli : touchez le bouton Partager de Safari, puis « Sur l’écran d’accueil ». Ensuite, ajoutez chaque nouvelle tournée en collant son lien dans l’appli.'
+      ? 'Pour l’avoir en appli : touchez le bouton Partager de Safari, puis « Sur l’écran d’accueil ». Ensuite, ajoutez chaque nouvelle tournée avec « Scanner le QR code » dans l’appli.'
       : 'Pour l’avoir en appli : menu ⋮ du navigateur, puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».';
   document.querySelectorAll('.installer').forEach(p => { p.textContent = txt; p.hidden = false; });
 }
@@ -510,8 +529,121 @@ $('#btnOuvrirLien').onclick = async () => {
   catch (e) { accueil('Lien de tournée illisible ou incomplet'); }
 };
 
-// Test sur ordinateur : window.tournee.simuler(lat, lon)
-window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere, seuils }) };
+// Scanner le QR code d'une tournee (ecran du PC ou page imprimee) : elle arrive directement dans l'appli
+// installee, sans passer par le navigateur. Lecteur du telephone s'il existe (Android), sinon ZXing (iPhone) :
+// sur un QR de tournee dense, flou et granuleux, ZXing lit en 0,1 s ce que jsQR ne lisait pas (essais du 11 sept.).
+const ZXING = 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/iife/reader/index.js';
+const ZXING_WASM = 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/reader/zxing_reader.wasm';
+let flux = null, scanActif = false, detecteur, zxingPromesse = null;
+function chargerZXing() {
+  if (!zxingPromesse) {
+    zxingPromesse = new Promise((ok, ko) => {
+      const s = document.createElement('script'); s.src = ZXING; s.async = true;
+      s.onload = () => {
+        const Z = window.ZXingWASM;
+        if (!Z) { ko(new Error('zxing')); return; }
+        Z.prepareZXingModule({ overrides: { locateFile: (p, prefixe) => (p.endsWith('.wasm') ? ZXING_WASM : prefixe + p) } });
+        ok(Z);
+      };
+      s.onerror = () => ko(new Error('zxing'));
+      document.head.appendChild(s);
+    }).catch(e => { zxingPromesse = null; throw e; });
+  }
+  return zxingPromesse;
+}
+async function lecteurNatif() {
+  if (detecteur !== undefined) return detecteur;
+  detecteur = null;
+  try {
+    if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detecteur = new BarcodeDetector({ formats: ['qr_code'] });
+  } catch (e) {}
+  return detecteur;
+}
+const toile = document.createElement('canvas');
+// Texte du QR code d'une image (video, photo ou toile), null s'il n'y en a pas.
+// Un QR de tournee est dense (plus de 100 modules) : lecture en pleine definition (1920 px au plus),
+// puis a moitie taille, qui rattrape les images tres floues (le flou y devient plus fin que les modules).
+async function lireQR(source, largeur, hauteur) {
+  const natif = await lecteurNatif();
+  if (natif) {
+    try { const r = await natif.detect(source); return r.length ? r[0].rawValue : null; } catch (e) { detecteur = null; }
+  }
+  const Z = await chargerZXing();
+  const k = Math.min(1, 1920 / Math.max(largeur, hauteur));
+  const cx = toile.getContext('2d', { willReadFrequently: true });
+  for (const f of [k, k / 2]) {
+    toile.width = Math.round(largeur * f); toile.height = Math.round(hauteur * f);
+    cx.drawImage(source, 0, 0, toile.width, toile.height);
+    const r = await Z.readBarcodes(cx.getImageData(0, 0, toile.width, toile.height), { formats: ['QRCode'], tryHarder: true, maxNumberOfSymbols: 1 });
+    const bon = r.find(b => b.isValid !== false && b.text);
+    if (bon) return bon.text;
+  }
+  return null;
+}
+async function codeScanne(texte) {
+  const m = String(texte || '').match(/[#&]d=([A-Za-z0-9_-]+)/);
+  if (!m) { $('#scanTxt').textContent = 'Ce QR code n’est pas une tournée'; return false; }
+  fermerScanner();
+  if (navigator.vibrate) navigator.vibrate(80);
+  try { await ouvrirCode(m[1]); } catch (e) { accueil('QR code de tournée illisible ou incomplet'); }
+  return true;
+}
+async function ouvrirScanner() {
+  $('#toast').hidden = true;
+  $('#scanTxt').textContent = 'Agrandissez le QR code sur l’écran du PC, puis remplissez le cadre avec';
+  $('#scanner').hidden = false;
+  chargerZXing().catch(() => {});
+  try {
+    flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+  } catch (e) {
+    $('#scanTxt').textContent = e && e.name === 'NotAllowedError'
+      ? 'Caméra refusée : autorisez-la pour ce site dans les réglages, ou prenez une photo du QR code'
+      : 'Caméra indisponible : prenez une photo du QR code';
+    return;
+  }
+  if ($('#scanner').hidden) { fermerScanner(); return; }
+  const v = $('#scanVideo');
+  v.srcObject = flux;
+  try { await v.play(); } catch (e) {}
+  scanActif = true;
+  boucleScan();
+}
+async function boucleScan() {
+  const v = $('#scanVideo');
+  while (scanActif) {
+    let pause = 250;
+    if (v.readyState >= 2 && v.videoWidth) {
+      try { const t = await lireQR(v, v.videoWidth, v.videoHeight); if (t && await codeScanne(t)) return; }
+      catch (e) { $('#scanTxt').textContent = 'Lecteur de QR code indisponible : vérifiez la connexion'; pause = 2000; }
+    }
+    await new Promise(r => setTimeout(r, pause));
+  }
+}
+function fermerScanner() {
+  scanActif = false;
+  if (flux) { flux.getTracks().forEach(t => t.stop()); flux = null; }
+  $('#scanVideo').srcObject = null;
+  $('#scanner').hidden = true;
+}
+$('#btnScanner').onclick = ouvrirScanner;
+$('#btnScannerListe').onclick = () => { $('#liste').hidden = true; ouvrirScanner(); };
+$('#scanAnnuler').onclick = fermerScanner;
+$('#scanPhoto').onchange = async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  $('#scanTxt').textContent = 'Lecture de la photo…';
+  try {
+    const img = await createImageBitmap(f);
+    const t = await lireQR(img, img.width, img.height);
+    if (!t) { $('#scanTxt').textContent = 'Aucun QR code lu sur la photo : rapprochez-vous et réessayez'; return; }
+    await codeScanne(t);
+  } catch (err) { $('#scanTxt').textContent = 'Photo illisible, réessayez'; }
+};
+
+// Test sur ordinateur : window.tournee.simuler(lat, lon) ; window.tournee.scannerImage(toile)
+window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere, seuils }),
+  scannerImage: async source => codeScanne(await lireQR(source, source.width, source.height)) };
 
 // Un lien peut arriver au chargement ou dans une page deja ouverte (seul le # change).
 async function lireLien() {
