@@ -109,6 +109,7 @@ header button{background:none;border:1px solid rgba(255,255,255,.55);color:#fff;
   <header>
     <div id="titre">Tournée</div>
     <div id="progres"><span id="progresTxt"></span><div class="jauge"><i id="jauge"></i></div></div>
+    <button id="btnScan" type="button" aria-label="Scanner le QR code d’une nouvelle tournée">Scanner</button>
     <button id="btnListe" type="button">Liste</button>
   </header>
   <div id="zoneCarte">
@@ -627,6 +628,7 @@ function fermerScanner() {
 }
 $('#btnScanner').onclick = ouvrirScanner;
 $('#btnScannerListe').onclick = () => { $('#liste').hidden = true; ouvrirScanner(); };
+$('#btnScan').onclick = ouvrirScanner;
 $('#scanAnnuler').onclick = fermerScanner;
 $('#scanPhoto').onchange = async e => {
   const f = e.target.files && e.target.files[0];
