@@ -26,7 +26,7 @@
   --police:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   --titre:'Space Grotesk','Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --primaire:#0975E3;--primaire-fonce:#0B4F9C;--nuit:#071A36;--clair:#66B2FF;
-  --bleu:#0A66C2;--vert:#168F61;--vert-fonce:#176044;
+  --bleu:#0A66C2;--vert:#168F61;--vert-fonce:#176044;--rouge:#A61B1B;
   --fond:#F4F8FC;--surface:#FFFFFF;--surface-2:#EDF3FA;--texte:#0E1116;--texte-2:#425166;--texte-3:#8797AB;
   --trait:rgba(11,79,156,.10);--trait-fort:rgba(11,79,156,.20);
   --bleu-pale:#EAF5FF;--vert-pale:#E7F5EE;
@@ -35,7 +35,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root{
-    --bleu:#66B2FF;--vert-fonce:#5ED3A1;
+    --bleu:#66B2FF;--vert-fonce:#5ED3A1;--rouge:#FF8A80;
     --fond:#061328;--surface:#0B1F3D;--surface-2:#132C52;--texte:#F4F8FC;--texte-2:#A9BBD3;--texte-3:#6F84A2;
     --trait:rgba(255,255,255,.08);--trait-fort:rgba(255,255,255,.2);
     --bleu-pale:rgba(102,178,255,.14);--vert-pale:rgba(22,143,97,.22);
@@ -61,6 +61,8 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .btn-bleu{background:var(--primaire);color:#fff;box-shadow:0 6px 16px rgba(9,117,227,.3)}
 .btn-clair{background:var(--surface-2);color:var(--texte)}
 .btn-texte{background:none;color:var(--texte-2);height:46px}
+.btn-rouge{background:#A61B1B;color:#fff;box-shadow:0 6px 16px rgba(166,27,27,.25)}
+.btn-texte.rouge{color:var(--rouge)}
 .pilule{flex:none;max-width:42%;padding:4px 10px;border-radius:99px;background:var(--surface-2);color:var(--texte-2);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pilule.vert{background:var(--vert-pale);color:var(--vert-fonce)}
 .pilule.bleu{background:var(--bleu-pale);color:var(--bleu)}
@@ -179,6 +181,11 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .liste-tournees{display:grid;gap:10px;list-style:none;margin:0;padding:0}
 .tournee{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;width:100%;padding:14px 16px;border:0;border-radius:18px;background:var(--surface);color:var(--texte);text-align:left;box-shadow:0 1px 2px rgba(7,26,54,.05);transition:transform .12s}
 .tournee:active{transform:scale(.98)}
+.ligne-tournee{position:relative}
+.ligne-tournee .tournee{padding-right:62px}
+.suppr{position:absolute;top:50%;right:8px;display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:none;color:var(--texte-3);transform:translateY(-50%)}
+.suppr:active{background:var(--surface-2);color:var(--rouge)}
+.suppr .ic{width:20px;height:20px}
 .tournee .nom{min-width:0;font:700 17px/1.25 var(--titre);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tournee .pilule{grid-column:2;grid-row:1/span 2;max-width:none}
 .tournee .etat{grid-column:1;font-size:13px;color:var(--texte-2)}
@@ -258,6 +265,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   <symbol id="i-etiquette" viewBox="0 0 24 24"><path d="M3.5 12.3V4.5a1 1 0 0 1 1-1h7.8l9 9a1.5 1.5 0 0 1 0 2.1l-6.9 6.9a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8.3" cy="8.3" r="1.6"/></symbol>
   <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></symbol>
   <symbol id="i-points" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5A1.5 1.5 0 0 1 11 3.5h2A1.5 1.5 0 0 1 14.5 5v2M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12M10 11v6M14 11v6"/></symbol>
   <symbol id="i-carte" viewBox="0 0 24 24"><path d="M9 4.5 3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"/><path d="M9 4.5v13M15 6.5v13"/></symbol>
 </svg>
 
@@ -322,6 +330,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
       <textarea id="bilanTexte" readonly hidden></textarea>
       <button class="btn btn-clair" type="button" id="btnScannerListe"><svg class="ic"><use href="#i-scan"/></svg>Scanner une nouvelle tournée</button>
       <button class="btn btn-texte" type="button" id="btnQuitter">Changer de tournée</button>
+      <button class="btn btn-texte rouge" type="button" id="btnSupprimer"><svg class="ic"><use href="#i-corbeille"/></svg>Supprimer cette tournée</button>
     </div>
     <p class="aide installer" hidden></p>
   </div>
@@ -505,10 +514,11 @@ $('#btnInstaller').onclick = async () => {
 
 // Feuilles du bas : un toucher sur le fond les ferme (la confirmation repond alors « non »).
 let reponse = null;
-function demander(titre, sous, oui) {
+function demander(titre, sous, oui, danger) {
   $('#confirmTitre').textContent = titre;
   $('#confirmSous').textContent = sous || ''; $('#confirmSous').hidden = !sous;
   $('#confirmOui').textContent = oui;
+  $('#confirmOui').className = 'btn ' + (danger ? 'btn-rouge' : 'btn-bleu');
   $('#confirmation').hidden = false;
   return new Promise(ok => { reponse = ok; });
 }
@@ -783,8 +793,40 @@ function accueil(erreur, info) {
     const plein = document.createElement('i'); plein.style.width = `${100 * traites / n}%`; barre.appendChild(plein);
     b.append(nom, pil, etat, barre);
     b.onclick = () => demarrer(x.T, x.E);
-    li.appendChild(b); ul.appendChild(li);
+    li.className = 'ligne-tournee';
+    const suppr = document.createElement('button'); suppr.type = 'button'; suppr.className = 'suppr';
+    suppr.setAttribute('aria-label', `Supprimer la tournée ${x.T.nom}`);
+    suppr.innerHTML = svg('corbeille');
+    suppr.onclick = async () => { if (await demanderSuppression(x)) accueil('', 'Tournée supprimée.'); };
+    li.append(b, suppr); ul.appendChild(li);
   });
+}
+
+// Supprimer une tournee du telephone : sa fiche, ses coches, ses notes et son trace garde en memoire.
+function supprimerTournee(id) {
+  try {
+    const cles = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === CLE + id || k.startsWith(`${TRACE}${id}:`)) cles.push(k);
+    }
+    cles.forEach(k => localStorage.removeItem(k));
+    if (lire(DERNIERE) === id) localStorage.removeItem(DERNIERE);
+  } catch (e) {}
+  if (T && T.id === id) {
+    clearTimeout(toastMinuterie); $('#toast').hidden = true;
+    if (carte) { carte.remove(); carte = null; }
+    marqueurs = []; trace = null; moi = null; halo = null; T = null; E = null;
+  }
+}
+async function demanderSuppression(x) {
+  const faits = x.T.p.filter((_, i) => x.E.etats[i]).length;
+  const sous = faits
+    ? `${pluriel(faits, 'arrêt')} déjà ${faits > 1 ? 'faits' : 'fait'} : envoyez le bilan avant, sinon ${faits > 1 ? 'ils seront perdus' : 'il sera perdu'}.`
+    : 'Elle sera effacée de ce téléphone.';
+  if (!(await demander(`Supprimer « ${x.T.nom} » ?`, sous, 'Supprimer la tournée', true))) return false;
+  supprimerTournee(x.T.id);
+  return true;
 }
 
 $('#btnDepose').onclick = () => marquer('depose');
@@ -830,6 +872,7 @@ $('#btnFinBilan').onclick = envoyerBilan;
 $('#tabBilan').onclick = envoyerBilan;
 $('#tabTournees').onclick = () => accueil();
 $('#btnQuitter').onclick = () => accueil();
+$('#btnSupprimer').onclick = async () => { if (T && await demanderSuppression({ T, E })) accueil('', 'Tournée supprimée.'); };
 $('#btnOuvrirLien').onclick = async () => {
   const m = $('#lienColle').value.trim().match(/[#&]d=([A-Za-z0-9_-]+)/);
   if (!m) { accueil('Ce lien ne contient pas de tournée'); return; }
