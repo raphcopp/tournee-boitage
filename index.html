@@ -86,6 +86,15 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 #gps .ic{width:20px;height:20px}
 #btnSuivre{position:absolute;z-index:790;right:14px;bottom:40px;display:grid;place-items:center;width:50px;height:50px;border:0;border-radius:50%;background:var(--surface);color:var(--texte-3);box-shadow:var(--ombre)}
 #btnSuivre[aria-pressed="true"]{color:var(--primaire)}
+#btnOrdre{position:absolute;z-index:790;right:14px;bottom:100px;display:grid;place-items:center;width:50px;height:50px;border:0;border-radius:50%;background:var(--surface);color:var(--texte-3);box-shadow:var(--ombre)}
+#btnOrdre:active{color:var(--primaire)}
+#btnOrdre .ic{width:22px;height:22px}
+/* Guidage : la manoeuvre suivante, juste au-dessus de la distance */
+.manoeuvre{display:flex;align-items:center;gap:12px;margin:10px 0 0;padding:10px 14px;border-radius:14px;background:var(--primaire);color:#fff}
+.manoeuvre span.fleche{flex:none;font-size:28px;line-height:1}
+.manoeuvre b{display:block;font:700 16px/1.25 var(--titre);letter-spacing:-.01em}
+.manoeuvre small{display:block;margin-top:1px;font-size:13px;opacity:.85}
+#btnGuider.actif{background:var(--vert);color:#fff}
 #fiche{position:relative;z-index:900;margin-top:-22px;padding:8px 16px 14px;border-radius:24px 24px 0 0;background:var(--surface);box-shadow:0 -8px 30px rgba(7,26,54,.14)}
 .poignee{width:38px;height:5px;margin:0 auto 10px;border-radius:99px;background:var(--trait-fort)}
 .arret{display:flex;align-items:center;gap:12px}
@@ -268,6 +277,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   <symbol id="i-boite" viewBox="0 0 24 24"><path d="M3.5 13.5h5l1.5 3h4l1.5-3h5"/><path d="M5.8 5.5h12.4l2.3 8v5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-5z"/></symbol>
   <symbol id="i-etiquette" viewBox="0 0 24 24"><path d="M3.5 12.3V4.5a1 1 0 0 1 1-1h7.8l9 9a1.5 1.5 0 0 1 0 2.1l-6.9 6.9a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8.3" cy="8.3" r="1.6"/></symbol>
   <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></symbol>
+  <symbol id="i-ordre" viewBox="0 0 24 24"><path d="M3 7h3.5l10 10H21"/><path d="M17.5 13.5 21 17l-3.5 3.5"/><path d="M3 17h3.5l2.6-2.6"/><path d="M14 9.6 16.6 7"/><path d="M17.5 3.5 21 7h-3.5"/></symbol>
   <symbol id="i-points" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5A1.5 1.5 0 0 1 11 3.5h2A1.5 1.5 0 0 1 14.5 5v2M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12M10 11v6M14 11v6"/></symbol>
   <symbol id="i-carte" viewBox="0 0 24 24"><path d="M9 4.5 3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"/><path d="M9 4.5v13M15 6.5v13"/></symbol>
@@ -284,6 +294,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
     </div>
     <div id="gps" hidden><svg class="ic"><use href="#i-alerte"/></svg><span id="gpsTxt"></span></div>
     <button id="btnSuivre" type="button" aria-pressed="true" aria-label="Suivre ma position"><svg class="ic"><use href="#i-cible"/></svg></button>
+    <button id="btnOrdre" type="button" aria-label="Refaire l’ordre des arrêts depuis ma position"><svg class="ic"><use href="#i-ordre"/></svg></button>
   </div>
   <section id="fiche">
     <div class="poignee"></div>
@@ -292,11 +303,16 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
         <span id="num" class="pastille"></span>
         <div class="arret-texte"><div id="surtitre"></div><div id="adresse"></div><div id="infos"></div></div>
         <button id="btnNote" class="rond" type="button" aria-label="Ajouter une note"><svg class="ic"><use href="#i-crayon"/></svg></button>
+        <a id="btnMaps" class="rond" target="_blank" rel="noopener" aria-label="Ouvrir dans Google Maps"><svg class="ic"><use href="#i-carte"/></svg></a>
       </div>
       <div id="noteTxt" hidden></div>
+      <div id="manoeuvre" class="manoeuvre" hidden>
+        <span class="fleche" id="manoeuvreFleche" aria-hidden="true">↑</span>
+        <div><b id="manoeuvreTxt"></b><small id="manoeuvreSous"></small></div>
+      </div>
       <div class="ligne-distance"><svg class="ic"><use href="#i-fleche"/></svg><span id="distance"></span></div>
       <div class="actions">
-        <a id="btnGuider" class="btn btn-clair" target="_blank" rel="noopener"><svg class="ic"><use href="#i-fleche"/></svg>Guider</a>
+        <button id="btnGuider" class="btn btn-clair" type="button"><svg class="ic"><use href="#i-fleche"/></svg>Guider</button>
         <button id="btnPasser" class="btn btn-clair" type="button"><svg class="ic"><use href="#i-passer"/></svg>Passer</button>
         <button id="btnDepose" class="btn btn-vert" type="button"><svg class="ic"><use href="#i-coche"/></svg>Déposé</button>
       </div>
@@ -326,6 +342,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
     <div class="outils">
       <button class="btn btn-vert" type="button" id="btnBilan"><svg class="ic"><use href="#i-partager"/></svg>Envoyer le bilan</button>
       <textarea id="bilanTexte" readonly hidden></textarea>
+      <button class="btn btn-clair" type="button" id="btnOrdreListe"><svg class="ic"><use href="#i-ordre"/></svg>Refaire l’ordre depuis ma position</button>
       <button class="btn btn-clair" type="button" id="btnScannerListe"><svg class="ic"><use href="#i-scan"/></svg>Scanner une nouvelle tournée</button>
       <button class="btn btn-texte" type="button" id="btnQuitter">Changer de tournée</button>
       <button class="btn btn-texte rouge" type="button" id="btnSupprimer"><svg class="ic"><use href="#i-corbeille"/></svg>Supprimer cette tournée</button>
@@ -539,17 +556,23 @@ document.querySelectorAll('.fond').forEach(f => f.addEventListener('click', e =>
   if (f.id === 'confirmation') repondre(false); else f.hidden = true;
 }));
 
-// Demarrage d'une tournee
-function demarrer(t, e) {
-  T = t; E = e || { courant: 0, etats: {}, notes: {} };
-  if (!E.notes) E.notes = {};
-  signale.clear();
-  // « Vous y êtes » : au plus la moitie de l'ecart avec l'immeuble voisin le plus proche (entre 12 et 35 m)
+// « Vous y êtes » : au plus la moitie de l'ecart avec l'immeuble voisin le plus proche (entre 12 et 35 m)
+function calculerSeuils() {
   seuils = T.p.map((s, i) => {
     let voisin = Infinity;
     T.p.forEach((o, j) => { if (j !== i) voisin = Math.min(voisin, distance(s, o)); });
     return Math.max(12, Math.min(35, voisin / 2));
   });
+}
+
+// Demarrage d'une tournee
+function demarrer(t, e) {
+  T = t; E = e || { courant: 0, etats: {}, notes: {} };
+  if (!E.notes) E.notes = {};
+  signale.clear();
+  calculerSeuils();
+  arreterGuide();
+  propose = false;
   $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
   $('#titre').textContent = T.nom;
   if (carte) { carte.remove(); carte = null; }
@@ -615,8 +638,9 @@ function majFiche() {
   const note = E.notes[E.courant];
   $('#noteTxt').textContent = note ? `Note : ${note}` : '';
   $('#noteTxt').hidden = !note;
-  $('#btnGuider').href = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking&dir_action=navigate`;
+  $('#btnMaps').href = `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking&dir_action=navigate`;
   majDistance();
+  calculerGuide(true);
 }
 
 function majDistance() {
@@ -647,13 +671,14 @@ function marquer(statut, raison) {
   toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => { delete E.etats[i]; E.courant = i; majTout(); });
 }
 
-function toast(txt, annuler) {
+function toast(txt, annuler, libelle) {
   $('#toastTxt').textContent = txt;
   // sur la carte, le message se pose juste au-dessus de la fiche pour ne jamais cacher « Déposé »
   const surCarte = !$('#app').hidden && $('#liste').hidden;
   $('#toast').style.bottom = surCarte ? `${Math.round(innerHeight - $('#fiche').getBoundingClientRect().top + 12)}px` : '';
   $('#toast').hidden = false;
   $('#toastAnnuler').hidden = !annuler;
+  $('#toastAnnuler').textContent = libelle || 'Annuler';
   $('#toastAnnuler').onclick = () => { $('#toast').hidden = true; if (annuler) annuler(); };
   clearTimeout(toastMinuterie);
   toastMinuterie = setTimeout(() => { $('#toast').hidden = true; }, 5000);
@@ -680,6 +705,8 @@ function positionner(lat, lon, acc) {
   } else { moi.setLatLng([lat, lon]); halo.setLatLng([lat, lon]).setRadius(acc || 20); }
   if (suivre) carte.panTo([lat, lon], { animate: true });
   majDistance();
+  calculerGuide();
+  proposerOrdre();
 }
 function regleSuivi(v) {
   suivre = v;
@@ -712,6 +739,150 @@ async function chargerTrace() {
   if (!T || T.id !== id || !carte) return;
   if (trace) trace.remove();
   trace = L.polyline(geo, { color: '#0975E3', weight: 5, opacity: .6 }).addTo(carte);
+}
+
+// Guidage dans l'appli : itineraire a pied de ma position jusqu'a l'arret en cours, refait quand j'avance.
+// Meme service d'itineraires que le trace (OpenStreetMap, profil pieton). Google Maps reste en secours.
+const OSRM = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
+let guidage = false, ligneGuide = null, calculEnCours = false, dernierCalcul = 0, posCalcul = null, propose = false;
+const COTES = { left: 'à gauche', right: 'à droite', 'slight left': 'légèrement à gauche', 'slight right': 'légèrement à droite',
+                'sharp left': 'à gauche en épingle', 'sharp right': 'à droite en épingle', straight: 'tout droit', uturn: 'demi-tour' };
+const FLECHES = { left: '↰', right: '↱', 'slight left': '↖', 'slight right': '↗', 'sharp left': '↰', 'sharp right': '↱',
+                  straight: '↑', uturn: '↻' };
+
+// Instruction en francais a partir de l'etape renvoyee par le serveur (type de manoeuvre + cote + nom de rue).
+function texteManoeuvre(pas) {
+  const m = (pas && pas.maneuver) || {}, mod = m.modifier || '', rue = ((pas && pas.name) || '').trim();
+  if (m.type === 'arrive') return { texte: rue ? `Vous arrivez sur ${rue}` : 'Vous arrivez', fleche: '⚑' };
+  let t;
+  if (m.type === 'roundabout' || m.type === 'rotary') t = `Au rond-point, ${m.exit ? `${m.exit}e sortie` : 'continuez'}`;
+  else if (m.type === 'depart') t = 'Partez tout droit';
+  else if (mod === 'straight' || !COTES[mod]) t = 'Continuez tout droit';
+  else if (m.type === 'new name' || m.type === 'continue') t = `Continuez ${COTES[mod]}`;
+  else t = `Tournez ${COTES[mod]}`;
+  return { texte: rue ? `${t} sur ${rue}` : t, fleche: FLECHES[mod] || '↑' };
+}
+
+function afficherManoeuvre(fleche, texte, sous) {
+  $('#manoeuvreFleche').textContent = fleche;
+  $('#manoeuvreTxt').textContent = texte;
+  $('#manoeuvreSous').textContent = sous || '';
+  $('#manoeuvre').hidden = false;
+}
+
+function majBoutonGuide() {
+  $('#btnGuider').innerHTML = svg('fleche') + (guidage ? 'Arrêter' : 'Guider');
+  $('#btnGuider').classList.toggle('actif', guidage);
+}
+
+function arreterGuide() {
+  guidage = false; posCalcul = null; dernierCalcul = 0;
+  if (ligneGuide) { ligneGuide.remove(); ligneGuide = null; }
+  $('#manoeuvre').hidden = true;
+  majBoutonGuide();
+}
+
+function basculerGuide() {
+  if (guidage) { arreterGuide(); return; }
+  guidage = true;
+  majBoutonGuide();
+  regleSuivi(true);
+  afficherManoeuvre('↑', 'Calcul de l’itinéraire…', '');
+  calculerGuide(true);
+}
+
+// Refait au plus une fois toutes les 8 s, et seulement si j'ai bouge de 20 m (sinon toutes les 25 s).
+async function calculerGuide(force) {
+  if (!guidage || !T || !carte || E.courant == null || !derniere || calculEnCours) return;
+  const maintenant = Date.now(), bouge = !posCalcul || distance(posCalcul, derniere) > 20;
+  if (!force && !(bouge && maintenant - dernierCalcul > 8000) && maintenant - dernierCalcul < 25000) return;
+  const s = T.p[E.courant], depart = { lat: derniere.lat, lon: derniere.lon };
+  calculEnCours = true;
+  try {
+    const url = `${OSRM}${depart.lon.toFixed(6)},${depart.lat.toFixed(6)};${s.lon.toFixed(6)},${s.lat.toFixed(6)}`
+      + '?overview=full&geometries=geojson&steps=true';
+    const j = await (await fetch(url)).json();
+    if (!guidage || !carte || j.code !== 'Ok' || !j.routes.length) throw new Error('itineraire');
+    const route = j.routes[0], pas = (route.legs[0] || {}).steps || [];
+    if (ligneGuide) ligneGuide.remove();
+    ligneGuide = L.polyline(route.geometry.coordinates.map(c => [c[1], c[0]]),
+                            { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
+    const { texte, fleche } = texteManoeuvre(pas.length > 1 ? pas[1] : pas[0]);
+    const avant = Math.round(pas.length ? pas[0].distance : route.distance);
+    afficherManoeuvre(fleche, avant > 15 ? `Dans ${avant} m, ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte,
+                      `${Math.round(route.distance)} m à pied, environ ${Math.max(1, Math.round(route.duration / 60))} min`);
+    dernierCalcul = Date.now(); posCalcul = depart;
+  } catch (e) {
+    afficherManoeuvre('↑', 'Itinéraire indisponible', 'Sans réseau : suivez la distance et la carte.');
+    dernierCalcul = Date.now();
+  } finally { calculEnCours = false; }
+}
+
+// Ordre le plus court depuis un point : on prend toujours le plus proche, puis on decroise le trajet (2-opt).
+function ordreDepuis(depart, points) {
+  const restants = points.map((p, i) => i), ordre = [];
+  let ici = depart;
+  while (restants.length) {
+    let k = 0;
+    restants.forEach((idx, j) => { if (distance(ici, points[idx]) < distance(ici, points[restants[k]])) k = j; });
+    const idx = restants.splice(k, 1)[0];
+    ordre.push(idx); ici = points[idx];
+  }
+  const pt = i => points[ordre[i]];
+  for (let tour = 0; tour < 4; tour++) {
+    let gagne = false;
+    for (let i = 0; i < ordre.length - 1; i++) {
+      for (let j = i + 2; j < ordre.length; j++) {
+        const a = i === 0 ? depart : pt(i - 1), b = pt(i), c = pt(j), d = j + 1 < ordre.length ? pt(j + 1) : null;
+        const avant = distance(a, b) + (d ? distance(c, d) : 0);
+        const apres = distance(a, c) + (d ? distance(b, d) : 0);
+        if (apres + 0.5 < avant) { ordre.splice(i, j - i + 1, ...ordre.slice(i, j + 1).reverse()); gagne = true; }
+      }
+    }
+    if (!gagne) break;
+  }
+  return ordre;
+}
+
+// Refaire l'ordre des arrets restants depuis ma position. Les arrets deja faits gardent leur place et leur etat.
+async function reorganiser() {
+  if (!T) return;
+  if (!derniere) { toast('Position pas encore connue'); return; }
+  const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
+  if (restants.length < 3) { toast('Moins de trois arrêts restants'); return; }
+  const ok = await demander('Refaire l’ordre depuis ici ?',
+    `${pluriel(restants.length, 'arrêt')} restants seront remis dans l’ordre le plus court depuis votre position. `
+    + 'Les arrêts déjà faits ne bougent pas.', 'Refaire l’ordre');
+  if (!ok) return;
+  propose = true;
+  const faits = T.p.map((s, i) => i).filter(i => etatDe(i));
+  const nouvel = faits.concat(ordreDepuis(derniere, restants.map(i => T.p[i])).map(k => restants[k]));
+  const etats = {}, notes = {};
+  nouvel.forEach((ancien, neuf) => {
+    if (E.etats[ancien]) etats[neuf] = E.etats[ancien];
+    if (E.notes[ancien]) notes[neuf] = E.notes[ancien];
+  });
+  T.p = nouvel.map(i => T.p[i]);
+  E.etats = etats; E.notes = notes; E.courant = faits.length;
+  signale.clear();
+  calculerSeuils();
+  majTout();
+  if (trace) { trace.remove(); trace = null; }
+  chargerTrace();
+  calculerGuide(true);
+  toast(`Ordre refait : ${pluriel(restants.length, 'arrêt')} depuis votre position`);
+}
+
+// Au premier point GPS : si un autre arret restant est bien plus proche, on le propose une seule fois.
+function proposerOrdre() {
+  if (propose || !T || !derniere || E.courant == null) return;
+  const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
+  if (restants.length < 3) return;
+  let proche = restants[0];
+  restants.forEach(i => { if (distance(derniere, T.p[i]) < distance(derniere, T.p[proche])) proche = i; });
+  if (proche === E.courant || distance(derniere, T.p[E.courant]) - distance(derniere, T.p[proche]) < 150) return;
+  propose = true;
+  toast(`Le n° ${proche + 1} est plus proche de vous`, reorganiser, 'Refaire l’ordre');
 }
 
 // Liste, bilan
@@ -901,6 +1072,13 @@ $('#noteOk').onclick = () => enregistrerNote($('#noteTexte').value);
 $('#noteEffacer').onclick = () => enregistrerNote('');
 $('#noteAnnuler').onclick = () => { $('#noteFeuille').hidden = true; noteIndex = null; };
 $('#btnSuivre').onclick = () => regleSuivi(!suivre);
+$('#btnGuider').onclick = basculerGuide;
+$('#btnOrdre').onclick = reorganiser;
+$('#btnOrdreListe').onclick = () => {
+  $('#liste').hidden = true;
+  setTimeout(() => carte && carte.invalidateSize(), 50);
+  reorganiser();
+};
 $('#btnListe').onclick = ouvrirListe;
 $('#tabCarte').onclick = montrerCarte;
 $('#btnFermer').onclick = () => { $('#liste').hidden = true; setTimeout(() => carte && carte.invalidateSize(), 50); };
