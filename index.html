@@ -614,7 +614,7 @@ function icone(i) {
 function dessiner() {
   marqueurs.forEach(m => m.remove());
   marqueurs = T.p.map((s, i) => L.marker([s.lat, s.lon], { icon: icone(i), zIndexOffset: i === E.courant ? 1000 : 0 })
-    .addTo(carte).on('click', () => { if (!etatDe(i)) { E.courant = i; majTout(); } }));
+    .addTo(carte).on('click', () => choisirArret(i)));
 }
 
 function majTout() { dessiner(); majFiche(); majListe(); sauver(); }
@@ -678,7 +678,16 @@ function marquer(statut, raison) {
   if (navigator.vibrate) navigator.vibrate(statut === 'depose' ? 60 : [30, 40, 30]);
   majTout();
   if (nx != null && suivre === false) carte.panTo([T.p[nx].lat, T.p[nx].lon]);
-  toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => { delete E.etats[i]; E.courant = i; majTout(); });
+  // Annuler retrouve l'arret par lui-meme : sa place a pu changer entre-temps (renumerotation).
+  const arret = T.p[i];
+  toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
+    const j = T.p.indexOf(arret);
+    if (j < 0) return;
+    delete E.etats[j];
+    reordonner(null, null);  // sans recalcul : la suite prevue reste la meme
+    E.courant = T.p.indexOf(arret);
+    majTout();
+  });
 }
 
 function toast(txt, annuler, libelle) {
@@ -790,6 +799,8 @@ function majBoutonGuide() {
 // Guidage vocal (voix du telephone, en francais). Coupe ou remis avec le haut-parleur du bandeau, choix garde.
 const VOIX = 'tournee-voix';
 let voix = lire(VOIX) !== 'non', manoeuvre = null, arretAnnonce = null;
+// l'arret annonce est reconnu par son adresse, pas par son numero (qui peut changer)
+const cleArret = i => (T && i != null && T.p[i]) ? `${T.p[i].a}|${T.p[i].lat}|${T.p[i].lon}` : null;
 function voixFr() {
   const v = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : [];
   return v.find(x => /^fr[-_](CH|FR)/i.test(x.lang)) || v.find(x => /^fr/i.test(x.lang)) || null;
@@ -844,7 +855,7 @@ function basculerGuide() {
   regleSuivi(true);
   afficherManoeuvre('↑', 'Calcul de l’itinéraire…', '');
   // Premiere parole dans le geste de l'utilisateur : sinon le telephone peut bloquer le son.
-  if (E.courant != null) { arretAnnonce = E.courant; parler(`Guidage vers le numéro ${E.courant + 1}, ${T.p[E.courant].a}`); }
+  if (E.courant != null) { arretAnnonce = cleArret(E.courant); parler(`Guidage vers le numéro ${E.courant + 1}, ${T.p[E.courant].a}`); }
   calculerGuide(true);
 }
 
@@ -868,7 +879,7 @@ async function calculerGuide(force) {
     const { texte, fleche } = texteManoeuvre(suivant);
     const avant = pas.length ? pas[0].distance : route.distance;
     const lieu = (suivant && suivant.maneuver && suivant.maneuver.location) || [s.lon, s.lat];
-    const cle = `${E.courant}|${texte}|${lieu[0].toFixed(4)},${lieu[1].toFixed(4)}`;
+    const cle = `${cleArret(E.courant)}|${texte}|${lieu[0].toFixed(4)},${lieu[1].toFixed(4)}`;
     const nouvelle = !manoeuvre || manoeuvre.cle !== cle;
     if (nouvelle) manoeuvre = { cle, texte, fleche, lat: lieu[1], lon: lieu[0], premiere: avant, dit: new Set() };
     // detour des rues par rapport a la ligne droite, pour suivre la distance en direct entre deux calculs
@@ -877,13 +888,13 @@ async function calculerGuide(force) {
     manoeuvre.sous = `${Math.round(route.distance)} m à pied, environ ${Math.max(1, Math.round(route.duration / 60))} min`;
     dernierCalcul = Date.now(); posCalcul = depart;
     if (nouvelle && fleche !== '⚑') {
-      const arret = arretAnnonce !== E.courant ? `Numéro ${E.courant + 1}, ${s.a}. ` : '';
-      arretAnnonce = E.courant;
+      const arret = arretAnnonce !== cleArret(E.courant) ? `Numéro ${E.courant + 1}, ${s.a}. ` : '';
+      arretAnnonce = cleArret(E.courant);
       if (avant > 20) manoeuvre.dit.add('premiere');
       if (avant <= 15) manoeuvre.dit.add('maintenant');
       parler(arret + (avant > 20 ? `Dans ${metresDits(avant)} mètres, ${minuscule(texte)}` : texte));
-    } else if (nouvelle && arretAnnonce !== E.courant) {
-      arretAnnonce = E.courant;
+    } else if (nouvelle && arretAnnonce !== cleArret(E.courant)) {
+      arretAnnonce = cleArret(E.courant);
       parler(`Numéro ${E.courant + 1}, ${s.a}, droit devant`);
     }
     majManoeuvre();
@@ -919,7 +930,37 @@ function ordreDepuis(depart, points) {
   return ordre;
 }
 
-// Refaire l'ordre des arrets restants depuis ma position. Les arrets deja faits gardent leur place et leur etat.
+// Les numeros suivent le vrai parcours : d'abord les arrets faits, dans l'ordre ou ils ont ete faits,
+// puis les restants dans l'ordre le plus court depuis `depart`. Si `premier` est donne (arret choisi a la main),
+// il passe en tete des restants et la suite part de lui. Coches, notes et proprietaires suivent chaque arret.
+function reordonner(depart, premier) {
+  const idx = T.p.map((s, i) => i);
+  const faits = idx.filter(i => etatDe(i))
+    .sort((a, b) => String(E.etats[a].t || '').localeCompare(String(E.etats[b].t || '')) || a - b);
+  let restants = idx.filter(i => !etatDe(i)), tete = [];
+  if (premier != null && restants.includes(premier)) {
+    tete = [premier]; restants = restants.filter(i => i !== premier); depart = T.p[premier];
+  }
+  const suite = depart && restants.length > 1 ? ordreDepuis(depart, restants.map(i => T.p[i])).map(k => restants[k]) : restants;
+  const nouvel = faits.concat(tete, suite);
+  const change = nouvel.some((ancien, neuf) => ancien !== neuf);
+  const etats = {}, notes = {}, vus = [];
+  nouvel.forEach((ancien, neuf) => {
+    if (E.etats[ancien]) etats[neuf] = E.etats[ancien];
+    if (E.notes[ancien]) notes[neuf] = E.notes[ancien];
+    if (signale.has(ancien)) vus.push(neuf);
+  });
+  T.p = nouvel.map(i => T.p[i]);
+  E.etats = etats; E.notes = notes; E.courant = faits.length < T.p.length ? faits.length : null;
+  signale.clear(); vus.forEach(i => signale.add(i));
+  calculerSeuils();
+  majTout();
+  if (change) { if (trace) { trace.remove(); trace = null; } chargerTrace(); }
+  calculerGuide(true);
+  return change;
+}
+
+// Bouton « Refaire l'ordre » : les restants depuis ma position.
 async function reorganiser() {
   if (!T) return;
   if (!derniere) { toast('Position pas encore connue'); return; }
@@ -930,22 +971,17 @@ async function reorganiser() {
     + 'Les arrêts déjà faits ne bougent pas.', 'Refaire l’ordre');
   if (!ok) return;
   propose = true;
-  const faits = T.p.map((s, i) => i).filter(i => etatDe(i));
-  const nouvel = faits.concat(ordreDepuis(derniere, restants.map(i => T.p[i])).map(k => restants[k]));
-  const etats = {}, notes = {};
-  nouvel.forEach((ancien, neuf) => {
-    if (E.etats[ancien]) etats[neuf] = E.etats[ancien];
-    if (E.notes[ancien]) notes[neuf] = E.notes[ancien];
-  });
-  T.p = nouvel.map(i => T.p[i]);
-  E.etats = etats; E.notes = notes; E.courant = faits.length;
-  signale.clear();
-  calculerSeuils();
-  majTout();
-  if (trace) { trace.remove(); trace = null; }
-  chargerTrace();
-  calculerGuide(true);
+  reordonner(derniere);
   toast(`Ordre refait : ${pluriel(restants.length, 'arrêt')} depuis votre position`);
+}
+
+// Arret choisi a la main (point de la carte, ligne de la liste) : il devient le suivant et la suite est
+// renumerotee depuis lui. Si c'etait deja le suivant prevu, rien ne bouge.
+function choisirArret(i) {
+  if (!T || i == null || etatDe(i)) return;
+  if (i === E.courant) { majTout(); return; }
+  propose = true;
+  if (reordonner(null, i)) toast(`Suite renumérotée depuis ${T.p[E.courant].a}`);
 }
 
 // Au premier point GPS : si un autre arret restant est bien plus proche, on le propose une seule fois.
@@ -982,7 +1018,8 @@ function majListe() {
     li.append(n, a, b);
     li.onclick = async () => {
       if (st && !(await demander(`Remettre le n° ${i + 1} à faire ?`, s.a, 'Remettre à faire'))) return;
-      delete E.etats[i]; E.courant = i; $('#liste').hidden = true; majTout();
+      delete E.etats[i]; $('#liste').hidden = true;
+      choisirArret(i);
       regleSuivi(false); carte.setView([s.lat, s.lon], Math.max(carte.getZoom(), ZOOM_NUMEROS), { animate: false });
     };
     ul.appendChild(li);
