@@ -463,7 +463,7 @@ const $ = s => document.querySelector(s);
 const CLE = 'tournee:', DERNIERE = 'tournee-derniere', TRACE = 'tournee-trace:';
 const ZOOM_NUMEROS = 17;
 let T = null, E = null, seuils = [];
-let carte = null, marqueurs = [], trace = null, moi = null, halo = null;
+let carte = null, marqueurs = [], moi = null, halo = null;
 let suivre = true, derniere = null, watchId = null, toastMinuterie = null;
 const signale = new Set();
 const svg = nom => `<svg class="ic" aria-hidden="true"><use href="#i-${nom}"/></svg>`;
@@ -591,7 +591,7 @@ function demarrer(t, e) {
   $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
   $('#titre').textContent = T.nom;
   if (carte) { carte.remove(); carte = null; }
-  marqueurs = []; trace = null; moi = null; halo = null; posPrecedente = null;
+  marqueurs = []; moi = null; halo = null; posPrecedente = null;
   // rotate : la carte peut tourner (sens de la marche) ; pas de rotation a deux doigts, trop facile a declencher
   carte = L.map('carte', { zoomControl: false, rotate: true, rotateControl: false, touchRotate: false, bearing: 0 });
   carte.attributionControl.setPrefix(false);
@@ -600,11 +600,9 @@ function demarrer(t, e) {
   // la barre du haut et la fiche du bas couvrent la carte : les arrets restent visibles entre les deux
   carte.fitBounds(L.latLngBounds(T.p.map(s => [s.lat, s.lon])), { paddingTopLeft: [24, 110], paddingBottomRight: [24, 60] });
   carte.on('dragstart', () => regleSuivi(false));
-  trace = L.polyline(T.p.map(s => [s.lat, s.lon]), { color: '#0975E3', weight: 4, opacity: .5, dashArray: '6 8' }).addTo(carte);
   majZoom();
   majTout();
   suivrePosition();
-  chargerTrace();
   setTimeout(() => carte.invalidateSize(), 50);
 }
 function majZoom() { if (carte) carte.getContainer().classList.toggle('petit', carte.getZoom() < ZOOM_NUMEROS); }
@@ -821,31 +819,12 @@ async function garderEcranAllume() {
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && T) garderEcranAllume(); });
 
-// Trace a pied par les rues (itineraire pieton OpenStreetMap), garde en memoire ; ligne droite sinon
-async function chargerTrace() {
-  const id = T.id;
-  const coords = T.p.map(s => `${s.lon.toFixed(6)},${s.lat.toFixed(6)}`).join(';');
-  // la cle depend de l'ordre des arrets : un nouvel ordre redemande son trace
-  let h = 5381; for (let i = 0; i < coords.length; i++) h = ((h * 33) ^ coords.charCodeAt(i)) >>> 0;
-  const cle = `${TRACE}${id}:${h.toString(36)}`;
-  let geo = null;
-  try { geo = JSON.parse(lire(cle)); } catch (e) {}
-  if (!geo) {
-    try {
-      const r = await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}?overview=full&geometries=geojson`);
-      const j = await r.json();
-      if (j.code !== 'Ok') return;
-      geo = j.routes[0].geometry.coordinates.map(c => [+c[1].toFixed(6), +c[0].toFixed(6)]);
-      ecrire(cle, JSON.stringify(geo));
-    } catch (e) { return; }
-  }
-  if (!T || T.id !== id || !carte) return;
-  if (trace) trace.remove();
-  trace = L.polyline(geo, { color: '#0975E3', weight: 5, opacity: .6 }).addTo(carte);
-}
+// Plus de trait de toute la tournee sur la carte (demande de Raphael, 25 sept.) : seul le chemin vert
+// du guidage, jusqu'a l'arret en cours, est dessine. Les traces gardes par les anciennes versions
+// (cles tournee-trace:) sont encore effaces avec leur tournee.
 
 // Guidage dans l'appli : itineraire a pied de ma position jusqu'a l'arret en cours, refait quand j'avance.
-// Meme service d'itineraires que le trace (OpenStreetMap, profil pieton). Google Maps reste en secours.
+// Service d'itineraires OpenStreetMap, profil pieton. Google Maps reste en secours.
 const OSRM = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
 let guidage = false, ligneGuide = null, calculEnCours = false, dernierCalcul = 0, posCalcul = null, propose = false;
 const COTES = { left: 'à gauche', right: 'à droite', 'slight left': 'légèrement à gauche', 'slight right': 'légèrement à droite',
@@ -1041,7 +1020,6 @@ function reordonner(depart, premier) {
   signale.clear(); vus.forEach(i => signale.add(i));
   calculerSeuils();
   majTout();
-  if (change) { if (trace) { trace.remove(); trace = null; } chargerTrace(); }
   calculerGuide(true);
   return change;
 }
@@ -1221,7 +1199,7 @@ function supprimerTournee(id) {
   if (T && T.id === id) {
     clearTimeout(toastMinuterie); $('#toast').hidden = true;
     if (carte) { carte.remove(); carte = null; }
-    marqueurs = []; trace = null; moi = null; halo = null; T = null; E = null;
+    marqueurs = []; moi = null; halo = null; T = null; E = null;
   }
 }
 async function demanderSuppression(x) {
