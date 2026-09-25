@@ -738,6 +738,11 @@ function positionner(lat, lon, acc) {
   else if (distance(posPrecedente, ici) >= 8) { nouveauCap(relevement(posPrecedente, ici), 'marche'); posPrecedente = ici; }
   if (suivre) carte.panTo([lat, lon], { animate: true });
   orienterMoi();
+  // Je passe devant un autre arret a faire : on le fait maintenant plutot que de revenir plus tard.
+  if (T && E.courant != null && !(distance(ici, T.p[E.courant]) <= seuils[E.courant])) {
+    const devant = T.p.findIndex((s, i) => i !== E.courant && !etatDe(i) && distance(ici, s) <= seuils[i]);
+    if (devant >= 0 && intercaler(devant)) { propose = true; toast(`Vous passez devant le n° ${E.courant + 1} : faites-le maintenant`); }
+  }
   majDistance();
   majManoeuvre();
   calculerGuide();
@@ -930,6 +935,7 @@ async function calculerGuide(force) {
   const maintenant = Date.now(), bouge = !posCalcul || distance(posCalcul, derniere) > 20;
   if (!force && !(bouge && maintenant - dernierCalcul > 8000) && maintenant - dernierCalcul < 25000) return;
   const s = T.p[E.courant], depart = { lat: derniere.lat, lon: derniere.lon };
+  let refaire = false;
   calculEnCours = true;
   try {
     const url = `${OSRM}${depart.lon.toFixed(6)},${depart.lat.toFixed(6)};${s.lon.toFixed(6)},${s.lat.toFixed(6)}`
@@ -937,9 +943,15 @@ async function calculerGuide(force) {
     const j = await (await fetch(url)).json();
     if (!guidage || !carte || j.code !== 'Ok' || !j.routes.length) throw new Error('itineraire');
     const route = j.routes[0], pas = (route.legs[0] || {}).steps || [];
+    const ligne = route.geometry.coordinates.map(c => [c[1], c[0]]);
+    const enChemin = arretSurLeChemin(ligne);
+    if (enChemin != null && intercaler(enChemin)) {
+      toast(`Le n° ${E.courant + 1} est sur votre chemin : il passe avant`);
+      refaire = true;
+      return;
+    }
     if (ligneGuide) ligneGuide.remove();
-    ligneGuide = L.polyline(route.geometry.coordinates.map(c => [c[1], c[0]]),
-                            { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
+    ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
     const suivant = pas.length > 1 ? pas[1] : pas[0];
     const { texte, fleche } = texteManoeuvre(suivant);
     const avant = pas.length ? pas[0].distance : route.distance;
@@ -966,7 +978,10 @@ async function calculerGuide(force) {
   } catch (e) {
     afficherManoeuvre('↑', 'Itinéraire indisponible', 'Sans réseau : suivez la distance et la carte.');
     dernierCalcul = Date.now();
-  } finally { calculEnCours = false; }
+  } finally {
+    calculEnCours = false;
+    if (refaire) calculerGuide(true);
+  }
 }
 
 // Ordre le plus court depuis un point : on prend toujours le plus proche, puis on decroise le trajet (2-opt).
@@ -998,16 +1013,23 @@ function ordreDepuis(depart, points) {
 // Les numeros suivent le vrai parcours : d'abord les arrets faits, dans l'ordre ou ils ont ete faits,
 // puis les restants dans l'ordre le plus court depuis `depart`. Si `premier` est donne (arret choisi a la main),
 // il passe en tete des restants et la suite part de lui. Coches, notes et proprietaires suivent chaque arret.
+// Arrets faits, dans l'ordre ou ils ont ete faits.
+function faitsDansLOrdre() {
+  return T.p.map((s, i) => i).filter(i => etatDe(i))
+    .sort((a, b) => String(E.etats[a].t || '').localeCompare(String(E.etats[b].t || '')) || a - b);
+}
 function reordonner(depart, premier) {
   const idx = T.p.map((s, i) => i);
-  const faits = idx.filter(i => etatDe(i))
-    .sort((a, b) => String(E.etats[a].t || '').localeCompare(String(E.etats[b].t || '')) || a - b);
+  const faits = faitsDansLOrdre();
   let restants = idx.filter(i => !etatDe(i)), tete = [];
   if (premier != null && restants.includes(premier)) {
     tete = [premier]; restants = restants.filter(i => i !== premier); depart = T.p[premier];
   }
   const suite = depart && restants.length > 1 ? ordreDepuis(depart, restants.map(i => T.p[i])).map(k => restants[k]) : restants;
-  const nouvel = faits.concat(tete, suite);
+  return appliquerOrdre(faits.concat(tete, suite), faits.length);
+}
+// Nouvel ordre des arrets (liste des anciennes places) : coches, notes et proprietaires suivent chaque arret.
+function appliquerOrdre(nouvel, nbFaits) {
   const change = nouvel.some((ancien, neuf) => ancien !== neuf);
   const etats = {}, notes = {}, vus = [];
   nouvel.forEach((ancien, neuf) => {
@@ -1016,12 +1038,48 @@ function reordonner(depart, premier) {
     if (signale.has(ancien)) vus.push(neuf);
   });
   T.p = nouvel.map(i => T.p[i]);
-  E.etats = etats; E.notes = notes; E.courant = faits.length < T.p.length ? faits.length : null;
+  E.etats = etats; E.notes = notes; E.courant = nbFaits < T.p.length ? nbFaits : null;
   signale.clear(); vus.forEach(i => signale.add(i));
   calculerSeuils();
   majTout();
   calculerGuide(true);
   return change;
+}
+
+// Un arret restant est sur mon chemin : il passe juste avant l'arret vise, la suite prevue ne change pas.
+function intercaler(j) {
+  if (!T || j == null || etatDe(j) || j === E.courant || E.courant == null) return false;
+  const faits = faitsDansLOrdre();
+  const autres = T.p.map((s, i) => i).filter(i => !etatDe(i) && i !== j && i !== E.courant);
+  appliquerOrdre(faits.concat([j, E.courant], autres), faits.length);
+  return true;
+}
+
+// Distance (m) d'un point a une ligne, et distance parcourue le long de la ligne jusqu'au point le plus proche.
+function surLaLigne(pt, ligne) {
+  const k = Math.cos(rad(pt.lat)), mx = 111320 * k, my = 110540;
+  let meilleur = { d: Infinity, le_long: 0 }, cumul = 0;
+  for (let i = 1; i < ligne.length; i++) {
+    const ax = ligne[i - 1][1] * mx, ay = ligne[i - 1][0] * my, bx = ligne[i][1] * mx, by = ligne[i][0] * my;
+    const px = pt.lon * mx, py = pt.lat * my, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy)), seg = Math.sqrt(l2);
+    if (d < meilleur.d) meilleur = { d, le_long: cumul + t * seg };
+    cumul += seg;
+  }
+  meilleur.total = cumul;
+  return meilleur;
+}
+// Sur le trajet vers l'arret vise, le premier arret restant a moins de 25 m du chemin (et pas deja au bout).
+const PRES_DU_CHEMIN = 25;
+function arretSurLeChemin(ligne) {
+  let choix = null;
+  T.p.forEach((s, i) => {
+    if (i === E.courant || etatDe(i)) return;
+    const r = surLaLigne(s, ligne);
+    if (r.d <= PRES_DU_CHEMIN && r.le_long < r.total - 15 && (!choix || r.le_long < choix.le_long)) choix = { i, le_long: r.le_long };
+  });
+  return choix ? choix.i : null;
 }
 
 // Bouton « Refaire l'ordre » : les restants depuis ma position.
