@@ -94,6 +94,22 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .moi i{position:absolute;inset:0;border:3px solid #fff;border-radius:50%;background:#1a73e8;box-shadow:0 1px 4px rgba(0,0,0,.35)}
 .moi b{position:absolute;left:2px;top:-15px;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:17px solid rgba(26,115,232,.55);transform-origin:9px 26px}
 .moi.sans-cap b{display:none}
+.voiture{display:grid;place-items:center;width:100%;height:100%;border:2.5px solid #fff;border-radius:50%;background:#071A36;color:#fff;box-shadow:0 2px 8px rgba(7,26,54,.45)}
+.voiture .ic{width:20px;height:20px}
+#fiche > .manoeuvre{margin:0 0 10px}
+/* Volet replie : il ne reste que l'adresse suivante (et la consigne de guidage en une ligne) */
+.poignee{cursor:pointer}
+#resumeCourt{display:none;margin-top:2px;font-size:14px;font-weight:600;color:var(--primaire);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#fiche.replie{padding-bottom:12px;cursor:pointer}
+#fiche.replie #manoeuvre,#fiche.replie #noteTxt,#fiche.replie .ligne-distance,#fiche.replie .actions,#fiche.replie #surtitre,
+#fiche.replie #infos,#fiche.replie .arret .rond,#fiche.replie #fin p,#fiche.replie #fin .btn,#fiche.replie .medaille{display:none!important}
+#fiche.replie #resumeCourt{display:block}
+#fiche.replie #fin h2{margin:0;font-size:18px}
+/* Plein ecran : la carte seule, sans barre du haut ni onglets */
+body.plein .barre,body.plein .onglets,body.plein #gps{display:none!important}
+body.plein #app{inset:0}
+#btnPlein{position:absolute;z-index:790;right:14px;bottom:160px;display:grid;place-items:center;width:50px;height:50px;border:0;border-radius:50%;background:var(--surface);color:var(--texte-3);box-shadow:var(--ombre)}
+body.plein #btnPlein{color:var(--primaire)}
 #btnOrdre{position:absolute;z-index:790;right:14px;bottom:100px;display:grid;place-items:center;width:50px;height:50px;border:0;border-radius:50%;background:var(--surface);color:var(--texte-3);box-shadow:var(--ombre)}
 #btnOrdre:active{color:var(--primaire)}
 #btnOrdre .ic{width:22px;height:22px}
@@ -139,7 +155,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .onglets .ic{width:24px;height:24px}
 .onglets .onglet-scan{color:var(--primaire)}
 .scan-rond{display:grid;place-items:center;width:52px;height:52px;margin-top:-26px;border:4px solid var(--surface);border-radius:50%;background:linear-gradient(145deg,#1683FF,var(--primaire-fonce));color:#fff;box-shadow:0 8px 18px rgba(9,117,227,.4)}
-.pin{display:grid;place-items:center;width:30px;height:30px;border:2.5px solid #fff;border-radius:50%;color:#fff;font:700 13px/1 var(--police);box-shadow:0 2px 6px rgba(7,26,54,.35);transition:transform .15s}
+.pin{display:grid;place-items:center;width:100%;height:100%;border:2.5px solid #fff;border-radius:15px;white-space:nowrap;color:#fff;font:700 13px/1 var(--police);box-shadow:0 2px 6px rgba(7,26,54,.35);transition:transform .15s}
 .pin.afaire{background:#071A36}
 .pin.courant{background:#0975E3;transform:scale(1.35);box-shadow:0 0 0 6px rgba(9,117,227,.25),0 2px 6px rgba(7,26,54,.35)}
 .pin.fait{background:#168F61}
@@ -272,6 +288,9 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   <symbol id="i-liste" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="17.5" r="1.3" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9M20 15v2.5a2.5 2.5 0 0 1-2.5 2.5H15M9 20H6.5A2.5 2.5 0 0 1 4 17.5V15"/><path d="M4 12h16"/></symbol>
   <symbol id="i-partager" viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M5 12.5v6A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5v-6"/></symbol>
+  <symbol id="i-plein" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
+  <symbol id="i-reduire" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></symbol>
+  <symbol id="i-voiture" viewBox="0 0 24 24"><path d="M4.5 16.5v-4l2.2-5h10.6l2.2 5v4Z"/><path d="M6.5 16.5v2.5M17.5 16.5v2.5M4.5 12.5h15"/><circle cx="8" cy="14.5" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="14.5" r="1" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-boussole" viewBox="0 0 24 24"><path d="M12 3.5 18.5 20 12 16.2 5.5 20Z" fill="currentColor"/></symbol>
   <symbol id="i-cible" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5"/></symbol>
   <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M3.5 10.8 20.5 3.5l-7.3 17-2.1-8.1z"/></symbol>
@@ -308,23 +327,24 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
     </div>
     <div id="gps" hidden><svg class="ic"><use href="#i-alerte"/></svg><span id="gpsTxt"></span></div>
     <button id="btnSuivre" type="button" aria-pressed="true" aria-label="Suivre ma position"><svg class="ic"><use href="#i-cible"/></svg></button>
-    <button id="btnOrdre" type="button" aria-label="Refaire l’ordre des arrêts depuis ma position"><svg class="ic"><use href="#i-ordre"/></svg></button>
+    <button id="btnPlein" type="button" aria-label="Plein écran : la carte seule"><svg class="ic"><use href="#i-plein"/></svg></button>
+    <button id="btnOrdre" type="button" aria-label="Je suis garé ici : tracer la tournée"><svg class="ic"><use href="#i-voiture"/></svg></button>
   </div>
   <section id="fiche">
     <div class="poignee"></div>
+    <div id="manoeuvre" class="manoeuvre" hidden>
+      <span class="fleche" id="manoeuvreFleche" aria-hidden="true">↑</span>
+      <div><b id="manoeuvreTxt"></b><small id="manoeuvreSous"></small></div>
+      <button id="btnVoix" class="voix" type="button" aria-label="Couper la voix"><svg class="ic"><use href="#i-son"/></svg></button>
+    </div>
     <div id="encours">
       <div class="arret">
         <span id="num" class="pastille"></span>
-        <div class="arret-texte"><div id="surtitre"></div><div id="adresse"></div><div id="infos"></div></div>
+        <div class="arret-texte"><div id="surtitre"></div><div id="adresse"></div><div id="infos"></div><div id="resumeCourt"></div></div>
         <button id="btnNote" class="rond" type="button" aria-label="Ajouter une note"><svg class="ic"><use href="#i-crayon"/></svg></button>
         <a id="btnMaps" class="rond" target="_blank" rel="noopener" aria-label="Ouvrir dans Google Maps"><svg class="ic"><use href="#i-carte"/></svg></a>
       </div>
       <div id="noteTxt" hidden></div>
-      <div id="manoeuvre" class="manoeuvre" hidden>
-        <span class="fleche" id="manoeuvreFleche" aria-hidden="true">↑</span>
-        <div><b id="manoeuvreTxt"></b><small id="manoeuvreSous"></small></div>
-        <button id="btnVoix" class="voix" type="button" aria-label="Couper la voix"><svg class="ic"><use href="#i-son"/></svg></button>
-      </div>
       <div class="ligne-distance"><svg class="ic"><use href="#i-fleche"/></svg><span id="distance"></span></div>
       <div class="actions">
         <button id="btnGuider" class="btn btn-clair" type="button"><svg class="ic"><use href="#i-fleche"/></svg>Guider</button>
@@ -337,6 +357,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
       <h2>Tournée terminée</h2>
       <p id="finTxt"></p>
       <button class="btn btn-vert" type="button" id="btnFinBilan"><svg class="ic"><use href="#i-partager"/></svg>Envoyer le bilan</button>
+      <button class="btn btn-clair" type="button" id="btnRetour" hidden style="margin-top:10px"><svg class="ic"><use href="#i-voiture"/></svg>Retour à la voiture</button>
     </div>
   </section>
 </div>
@@ -357,7 +378,7 @@ button,.btn{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
     <div class="outils">
       <button class="btn btn-vert" type="button" id="btnBilan"><svg class="ic"><use href="#i-partager"/></svg>Envoyer le bilan</button>
       <textarea id="bilanTexte" readonly hidden></textarea>
-      <button class="btn btn-clair" type="button" id="btnOrdreListe"><svg class="ic"><use href="#i-ordre"/></svg>Refaire l’ordre depuis ma position</button>
+      <button class="btn btn-clair" type="button" id="btnOrdreListe"><svg class="ic"><use href="#i-voiture"/></svg>Je suis garé ici : tracer la tournée</button>
       <button class="btn btn-clair" type="button" id="btnScannerListe"><svg class="ic"><use href="#i-scan"/></svg>Scanner une nouvelle tournée</button>
       <button class="btn btn-texte" type="button" id="btnQuitter">Changer de tournée</button>
       <button class="btn btn-texte rouge" type="button" id="btnSupprimer"><svg class="ic"><use href="#i-corbeille"/></svg>Supprimer cette tournée</button>
@@ -591,7 +612,7 @@ function demarrer(t, e) {
   $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
   $('#titre').textContent = T.nom;
   if (carte) { carte.remove(); carte = null; }
-  marqueurs = []; moi = null; halo = null; posPrecedente = null;
+  marqueurs = []; moi = null; halo = null; posPrecedente = null; ligneTournee = null; marqueurVoiture = null;
   // rotate : la carte peut tourner (sens de la marche) ; pas de rotation a deux doigts, trop facile a declencher
   carte = L.map('carte', { zoomControl: false, rotate: true, rotateControl: false, touchRotate: false, bearing: 0 });
   carte.attributionControl.setPrefix(false);
@@ -608,24 +629,39 @@ function demarrer(t, e) {
 function majZoom() { if (carte) carte.getContainer().classList.toggle('petit', carte.getZoom() < ZOOM_NUMEROS); }
 
 function etatDe(i) { return E.etats[i] ? E.etats[i].s : null; }
-function prochain(depuis) {
-  const n = T.p.length;
-  for (let k = 1; k <= n; k++) { const i = (depuis + k) % n; if (!etatDe(i)) return i; }
-  return null;
+// Arret suivant : le premier pas encore fait dans l'ordre du trace (un arret fait hors ordre ne decale pas la suite).
+function premierRestant() {
+  const i = T.p.findIndex((s, k) => !etatDe(k));
+  return i < 0 ? null : i;
 }
+
+// Numero de l'immeuble (« Chemin de Longet 12b.1 » -> rue « Chemin de Longet », 12, « b ») : c'est lui qui s'affiche,
+// pas l'ordre de passage.
+const RE_NUMERO = /^(.*?)[\s,]+(\d+)\s*([a-z]{0,3})(?:\s*[-/.]\s*\d+\s*[a-z]{0,3})*\s*$/i;
+function decoupe(adresse) {
+  const m = String(adresse || '').match(RE_NUMERO);
+  return m ? { rue: m[1].trim(), num: +m[2], lettre: m[3].toLowerCase() } : { rue: String(adresse || '').trim(), num: null, lettre: '' };
+}
+function numeroImmeuble(s) { const d = decoupe(s.a); return d.num != null ? `${d.num}${d.lettre}` : '•'; }
+const cleStop = s => `${s.a}|${s.lat}|${s.lon}`;
 
 function icone(i) {
   const s = etatDe(i);
   const cls = s === 'depose' ? 'fait' : s === 'passe' ? 'passe' : (i === E.courant ? 'courant' : 'afaire');
-  return L.divIcon({ className: '', html: `<div class="pin ${cls}">${s === 'depose' ? '✓' : i + 1}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+  const texte = s === 'depose' ? '✓' : numeroImmeuble(T.p[i]), l = Math.max(30, 14 + 8 * texte.length);
+  return L.divIcon({ className: '', html: `<div class="pin ${cls}">${texte}</div>`, iconSize: [l, 30], iconAnchor: [l / 2, 15] });
 }
 function dessiner() {
   marqueurs.forEach(m => m.remove());
   marqueurs = T.p.map((s, i) => L.marker([s.lat, s.lon], { icon: icone(i), zIndexOffset: i === E.courant ? 1000 : 0 })
     .addTo(carte).on('click', () => choisirArret(i)));
+  if (marqueurVoiture) { marqueurVoiture.remove(); marqueurVoiture = null; }
+  if (E.voiture) marqueurVoiture = L.marker([E.voiture.lat, E.voiture.lon], { interactive: false, keyboard: false, zIndexOffset: 1500,
+    icon: L.divIcon({ className: '', html: `<div class="voiture">${svg('voiture')}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(carte);
+  $('#btnOrdre').setAttribute('aria-label', E.voiture ? 'Recalculer le tracé depuis ici' : 'Je suis garé ici : tracer la tournée');
 }
 
-function majTout() { dessiner(); majFiche(); majListe(); sauver(); }
+function majTout() { dessiner(); dessinerTournee(); majFiche(); majListe(); sauver(); }
 
 function majFiche() {
   const n = T.p.length;
@@ -638,15 +674,20 @@ function majFiche() {
   $('#jauge').style.width = pc + '%';
   const termine = traites === n;
   $('#encours').hidden = termine; $('#fin').hidden = !termine;
+  $('#btnRetour').hidden = !(termine && E.voiture && !guidage);
   if (termine) {
+    E.courant = null;
+    calculerGuide(true);
     $('#finTxt').textContent = `${pluriel(faits.length, 'immeuble')} ${faits.length > 1 ? 'déposés' : 'déposé'} sur ${n}, ${pluriel(proprios, 'propriétaire')}.`;
     $('#fiche').classList.remove('arrive');
     return;
   }
-  if (E.courant == null || E.courant >= n || etatDe(E.courant)) E.courant = prochain(E.courant == null ? -1 : E.courant);
+  if (E.courant == null || E.courant >= n || etatDe(E.courant)) E.courant = premierRestant();
   const s = T.p[E.courant];
-  $('#surtitre').textContent = `Arrêt ${E.courant + 1} sur ${n}`;
-  $('#num').textContent = E.courant + 1;
+  $('#surtitre').textContent = `Prochain arrêt · encore ${n - traites}`;
+  const num = numeroImmeuble(s);
+  $('#num').textContent = num;
+  $('#num').style.fontSize = num.length > 3 ? '15px' : '';
   $('#adresse').textContent = s.a;
   $('#infos').textContent = `${s.l} · ${pluriel(s.b, 'propriétaire')}`;
   const note = E.notes[E.courant];
@@ -669,11 +710,12 @@ function majDistance() {
     if (!signale.has(E.courant)) {
       signale.add(E.courant);
       if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
-      parler(`Vous y êtes. Numéro ${E.courant + 1}, ${s.a}`);
+      parler(`Vous y êtes. ${s.a}`);
     }
   } else {
     $('#distance').textContent = d < 1000 ? `À ${Math.round(d)} m` : `À ${(d / 1000).toFixed(1).replace('.', ',')} km`;
   }
+  if (!guidage) $('#resumeCourt').textContent = $('#distance').textContent;
 }
 
 function marquer(statut, raison) {
@@ -681,19 +723,18 @@ function marquer(statut, raison) {
   if (i == null) return;
   E.etats[i] = { s: statut, t: new Date().toISOString() };
   if (raison) E.etats[i].r = raison;
-  const nx = prochain(i);
+  const nx = premierRestant();
   E.courant = nx;
   if (navigator.vibrate) navigator.vibrate(statut === 'depose' ? 60 : [30, 40, 30]);
   majTout();
   if (nx != null && suivre === false) carte.panTo([T.p[nx].lat, T.p[nx].lon]);
-  // Annuler retrouve l'arret par lui-meme : sa place a pu changer entre-temps (renumerotation).
+  // Annuler retrouve l'arret par lui-meme (l'ordre a pu etre recalcule entre-temps).
   const arret = T.p[i];
-  toast(`N° ${i + 1} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
+  toast(`${arret.a} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
     const j = T.p.indexOf(arret);
     if (j < 0) return;
     delete E.etats[j];
-    reordonner(null, null);  // sans recalcul : la suite prevue reste la meme
-    E.courant = T.p.indexOf(arret);
+    E.courant = j;
     majTout();
   });
 }
@@ -738,10 +779,11 @@ function positionner(lat, lon, acc) {
   else if (distance(posPrecedente, ici) >= 8) { nouveauCap(relevement(posPrecedente, ici), 'marche'); posPrecedente = ici; }
   if (suivre) carte.panTo([lat, lon], { animate: true });
   orienterMoi();
-  // Je passe devant un autre arret a faire : on le fait maintenant plutot que de revenir plus tard.
-  if (T && E.courant != null && !(distance(ici, T.p[E.courant]) <= seuils[E.courant])) {
-    const devant = T.p.findIndex((s, i) => i !== E.courant && !etatDe(i) && distance(ici, s) <= seuils[i]);
-    if (devant >= 0 && intercaler(devant)) { propose = true; toast(`Vous passez devant le n° ${E.courant + 1} : faites-le maintenant`); }
+  // Tournee finie, de retour a la voiture : on le dit et le guidage s'arrete.
+  if (guidage && T && E.courant == null && E.voiture && distance(ici, E.voiture) <= 25) {
+    parler('Vous êtes de retour à la voiture. Bonne fin de journée');
+    arreterGuide();
+    majFiche();
   }
   majDistance();
   majManoeuvre();
@@ -830,7 +872,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 // Guidage dans l'appli : itineraire a pied de ma position jusqu'a l'arret en cours, refait quand j'avance.
 // Service d'itineraires OpenStreetMap, profil pieton. Google Maps reste en secours.
-const OSRM = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
+// Itineraires par la route, comme en voiture (demande de Raphael, 25 sept. : les chemins pietons le perturbent).
+const OSRM = 'https://routing.openstreetmap.de/routed-car/route/v1/driving/';
+const MINUTES = m => Math.max(1, Math.round(m / 200));  // trottinette, environ 12 km/h
 let guidage = false, ligneGuide = null, calculEnCours = false, dernierCalcul = 0, posCalcul = null, propose = false;
 const COTES = { left: 'à gauche', right: 'à droite', 'slight left': 'légèrement à gauche', 'slight right': 'légèrement à droite',
                 'sharp left': 'à gauche en épingle', 'sharp right': 'à droite en épingle', straight: 'tout droit', uturn: 'demi-tour' };
@@ -852,6 +896,7 @@ function texteManoeuvre(pas) {
 }
 
 function afficherManoeuvre(fleche, texte, sous) {
+  $('#resumeCourt').textContent = `${fleche} ${texte}`;
   $('#manoeuvreFleche').textContent = fleche;
   $('#manoeuvreTxt').textContent = texte;
   $('#manoeuvreSous').textContent = sous || '';
@@ -866,8 +911,6 @@ function majBoutonGuide() {
 // Guidage vocal (voix du telephone, en francais). Coupe ou remis avec le haut-parleur du bandeau, choix garde.
 const VOIX = 'tournee-voix';
 let voix = lire(VOIX) !== 'non', manoeuvre = null, arretAnnonce = null;
-// l'arret annonce est reconnu par son adresse, pas par son numero (qui peut changer)
-const cleArret = i => (T && i != null && T.p[i]) ? `${T.p[i].a}|${T.p[i].lat}|${T.p[i].lon}` : null;
 function voixFr() {
   const v = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : [];
   return v.find(x => /^fr[-_](CH|FR)/i.test(x.lang)) || v.find(x => /^fr/i.test(x.lang)) || null;
@@ -925,17 +968,18 @@ function basculerGuide() {
   regleSuivi(true, true);
   afficherManoeuvre('↑', 'Calcul de l’itinéraire…', '');
   // Premiere parole dans le geste de l'utilisateur : sinon le telephone peut bloquer le son.
-  if (E.courant != null) { arretAnnonce = cleArret(E.courant); parler(`Guidage vers le numéro ${E.courant + 1}, ${T.p[E.courant].a}`); }
+  const c = cible();
+  if (c) { arretAnnonce = c.cle; parler(`Guidage vers ${c.a}`); }
   calculerGuide(true);
 }
 
 // Refait au plus une fois toutes les 8 s, et seulement si j'ai bouge de 20 m (sinon toutes les 25 s).
 async function calculerGuide(force) {
-  if (!guidage || !T || !carte || E.courant == null || !derniere || calculEnCours) return;
+  const s = guidage && T ? cible() : null;
+  if (!s || !carte || !derniere || calculEnCours) return;
   const maintenant = Date.now(), bouge = !posCalcul || distance(posCalcul, derniere) > 20;
   if (!force && !(bouge && maintenant - dernierCalcul > 8000) && maintenant - dernierCalcul < 25000) return;
-  const s = T.p[E.courant], depart = { lat: derniere.lat, lon: derniere.lon };
-  let refaire = false;
+  const depart = { lat: derniere.lat, lon: derniere.lon };
   calculEnCours = true;
   try {
     const url = `${OSRM}${depart.lon.toFixed(6)},${depart.lat.toFixed(6)};${s.lon.toFixed(6)},${s.lat.toFixed(6)}`
@@ -944,93 +988,122 @@ async function calculerGuide(force) {
     if (!guidage || !carte || j.code !== 'Ok' || !j.routes.length) throw new Error('itineraire');
     const route = j.routes[0], pas = (route.legs[0] || {}).steps || [];
     const ligne = route.geometry.coordinates.map(c => [c[1], c[0]]);
-    const enChemin = arretSurLeChemin(ligne);
-    if (enChemin != null && intercaler(enChemin)) {
-      toast(`Le n° ${E.courant + 1} est sur votre chemin : il passe avant`);
-      refaire = true;
-      return;
-    }
-    if (ligneGuide) ligneGuide.remove();
-    ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
+    // Avec le trace de la tournee affiche, on ne dessine pas un second chemin : la voix et le bandeau le suivent.
+    if (ligneGuide) { ligneGuide.remove(); ligneGuide = null; }
+    if (!E.trace) ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
     const suivant = pas.length > 1 ? pas[1] : pas[0];
     const { texte, fleche } = texteManoeuvre(suivant);
     const avant = pas.length ? pas[0].distance : route.distance;
     const lieu = (suivant && suivant.maneuver && suivant.maneuver.location) || [s.lon, s.lat];
-    const cle = `${cleArret(E.courant)}|${texte}|${lieu[0].toFixed(4)},${lieu[1].toFixed(4)}`;
+    const cle = `${s.cle}|${texte}|${lieu[0].toFixed(4)},${lieu[1].toFixed(4)}`;
     const nouvelle = !manoeuvre || manoeuvre.cle !== cle;
     if (nouvelle) manoeuvre = { cle, texte, fleche, lat: lieu[1], lon: lieu[0], premiere: avant, dit: new Set() };
     // detour des rues par rapport a la ligne droite, pour suivre la distance en direct entre deux calculs
     // (plus court que la ligne droite quand on part d'une maison en retrait : l'itineraire part de la route)
     manoeuvre.detour = Math.min(2, Math.max(0.5, avant / Math.max(1, distance(depart, manoeuvre))));
-    manoeuvre.sous = `${Math.round(route.distance)} m à pied, environ ${Math.max(1, Math.round(route.duration / 60))} min`;
+    manoeuvre.sous = `${s.a} · ${Math.round(route.distance)} m, environ ${MINUTES(route.distance)} min`;
     dernierCalcul = Date.now(); posCalcul = depart;
     if (nouvelle && fleche !== '⚑') {
-      const arret = arretAnnonce !== cleArret(E.courant) ? `Numéro ${E.courant + 1}, ${s.a}. ` : '';
-      arretAnnonce = cleArret(E.courant);
+      const arret = arretAnnonce !== s.cle ? `${s.a}. ` : '';
+      arretAnnonce = s.cle;
       if (avant > 20) manoeuvre.dit.add('premiere');
       if (avant <= 15) manoeuvre.dit.add('maintenant');
       parler(arret + (avant > 20 ? `Dans ${metresDits(avant)} mètres, ${minuscule(texte)}` : texte));
-    } else if (nouvelle && arretAnnonce !== cleArret(E.courant)) {
-      arretAnnonce = cleArret(E.courant);
-      parler(`Numéro ${E.courant + 1}, ${s.a}, droit devant`);
+    } else if (nouvelle && arretAnnonce !== s.cle) {
+      arretAnnonce = s.cle;
+      parler(`${s.a}, droit devant`);
     }
     majManoeuvre();
   } catch (e) {
     afficherManoeuvre('↑', 'Itinéraire indisponible', 'Sans réseau : suivez la distance et la carte.');
     dernierCalcul = Date.now();
-  } finally {
-    calculEnCours = false;
-    if (refaire) calculerGuide(true);
-  }
+  } finally { calculEnCours = false; }
 }
 
-// Ordre le plus court depuis un point : on prend toujours le plus proche, puis on decroise le trajet (2-opt).
-function ordreDepuis(depart, points) {
-  const restants = points.map((p, i) => i), ordre = [];
+// Ou guider : l'arret en cours, ou la voiture quand la tournee est finie.
+function cible() {
+  if (E.courant != null && T.p[E.courant]) { const s = T.p[E.courant]; return { lat: s.lat, lon: s.lon, a: s.a, cle: cleStop(s) }; }
+  if (E.voiture && T.p.every((s, i) => etatDe(i))) return { lat: E.voiture.lat, lon: E.voiture.lon, a: 'la voiture', cle: 'voiture' };
+  return null;
+}
+
+// ---- Ordre de la tournee, en boucle depuis la voiture ----
+// Chaque cote de rue (numeros pairs d'un cote, impairs de l'autre) se fait d'un seul tenant, dans l'ordre des
+// maisons : on ne traverse pas a chaque maison. Les cotes s'enchainent au plus court : un cote a l'aller, l'autre
+// au retour quand le parcours repasse par la rue. On part de la voiture et on y revient.
+const COUPURE_COTE = 250;  // au-dela, deux maisons du meme cote de la meme rue forment deux morceaux
+const sansAccent = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function cotesDeRue(points) {
+  const groupes = new Map();
+  points.forEach((pt, i) => {
+    const d = decoupe(pt.a);
+    const cle = d.num == null ? `?${i}` : `${sansAccent(d.rue)}|${sansAccent(pt.l)}|${d.num % 2}`;
+    if (!groupes.has(cle)) groupes.set(cle, []);
+    groupes.get(cle).push(i);
+  });
+  const morceaux = [];
+  groupes.forEach(ids => {
+    // les maisons dans l'ordre de la rue : projection sur l'axe des deux plus eloignees
+    let a = ids[0], b = ids[0], loin = -1;
+    ids.forEach(x => ids.forEach(y => { const d = distance(points[x], points[y]); if (d > loin) { loin = d; a = x; b = y; } }));
+    const k = Math.cos(rad(points[a].lat)), ax = (points[b].lon - points[a].lon) * k, ay = points[b].lat - points[a].lat;
+    const proj = i => (points[i].lon - points[a].lon) * k * ax + (points[i].lat - points[a].lat) * ay;
+    ids.sort((x, y) => proj(x) - proj(y));
+    let m = [ids[0]];
+    for (let j = 1; j < ids.length; j++) {
+      if (distance(points[ids[j - 1]], points[ids[j]]) > COUPURE_COTE) { morceaux.push(m); m = []; }
+      m.push(ids[j]);
+    }
+    morceaux.push(m);
+  });
+  return morceaux;
+}
+function ordreBoucle(depart, fin, points) {
+  const M = cotesDeRue(points);
+  const entree = x => points[x.sens ? M[x.m][M[x.m].length - 1] : M[x.m][0]];
+  const sortie = x => points[x.sens ? M[x.m][0] : M[x.m][M[x.m].length - 1]];
+  // plus proche d'abord, en choisissant le sens de chaque morceau
+  const reste = M.map((m, i) => i), seq = [];
   let ici = depart;
-  while (restants.length) {
-    let k = 0;
-    restants.forEach((idx, j) => { if (distance(ici, points[idx]) < distance(ici, points[restants[k]])) k = j; });
-    const idx = restants.splice(k, 1)[0];
-    ordre.push(idx); ici = points[idx];
+  while (reste.length) {
+    let mieux = null;
+    reste.forEach((m, k) => [false, true].forEach(sens => {
+      const d = distance(ici, entree({ m, sens }));
+      if (!mieux || d < mieux.d) mieux = { d, k, m, sens };
+    }));
+    reste.splice(mieux.k, 1);
+    seq.push({ m: mieux.m, sens: mieux.sens });
+    ici = sortie(seq[seq.length - 1]);
   }
-  const pt = i => points[ordre[i]];
-  for (let tour = 0; tour < 4; tour++) {
+  // decroisement (2-opt) : on retourne un bout de parcours (et le sens de chaque morceau) tant que c'est plus court
+  const avant = i => (i === 0 ? depart : sortie(seq[i - 1]));
+  const apres = j => (j + 1 < seq.length ? entree(seq[j + 1]) : fin);
+  const d = (a, b) => (a && b ? distance(a, b) : 0);
+  for (let passe = 0; passe < 25; passe++) {
     let gagne = false;
-    for (let i = 0; i < ordre.length - 1; i++) {
-      for (let j = i + 2; j < ordre.length; j++) {
-        const a = i === 0 ? depart : pt(i - 1), b = pt(i), c = pt(j), d = j + 1 < ordre.length ? pt(j + 1) : null;
-        const avant = distance(a, b) + (d ? distance(c, d) : 0);
-        const apres = distance(a, c) + (d ? distance(b, d) : 0);
-        if (apres + 0.5 < avant) { ordre.splice(i, j - i + 1, ...ordre.slice(i, j + 1).reverse()); gagne = true; }
+    for (let i = 0; i < seq.length; i++) {
+      for (let j = i; j < seq.length; j++) {
+        const actuel = d(avant(i), entree(seq[i])) + d(sortie(seq[j]), apres(j));
+        const retourne = d(avant(i), sortie(seq[j])) + d(entree(seq[i]), apres(j));
+        if (retourne + 1 < actuel) {
+          const bout = seq.slice(i, j + 1).reverse().map(x => ({ m: x.m, sens: !x.sens }));
+          seq.splice(i, j - i + 1, ...bout);
+          gagne = true;
+        }
       }
     }
     if (!gagne) break;
   }
-  return ordre;
+  return seq.flatMap(x => (x.sens ? M[x.m].slice().reverse() : M[x.m]));
 }
 
-// Les numeros suivent le vrai parcours : d'abord les arrets faits, dans l'ordre ou ils ont ete faits,
-// puis les restants dans l'ordre le plus court depuis `depart`. Si `premier` est donne (arret choisi a la main),
-// il passe en tete des restants et la suite part de lui. Coches, notes et proprietaires suivent chaque arret.
 // Arrets faits, dans l'ordre ou ils ont ete faits.
 function faitsDansLOrdre() {
   return T.p.map((s, i) => i).filter(i => etatDe(i))
     .sort((a, b) => String(E.etats[a].t || '').localeCompare(String(E.etats[b].t || '')) || a - b);
 }
-function reordonner(depart, premier) {
-  const idx = T.p.map((s, i) => i);
-  const faits = faitsDansLOrdre();
-  let restants = idx.filter(i => !etatDe(i)), tete = [];
-  if (premier != null && restants.includes(premier)) {
-    tete = [premier]; restants = restants.filter(i => i !== premier); depart = T.p[premier];
-  }
-  const suite = depart && restants.length > 1 ? ordreDepuis(depart, restants.map(i => T.p[i])).map(k => restants[k]) : restants;
-  return appliquerOrdre(faits.concat(tete, suite), faits.length);
-}
 // Nouvel ordre des arrets (liste des anciennes places) : coches, notes et proprietaires suivent chaque arret.
 function appliquerOrdre(nouvel, nbFaits) {
-  const change = nouvel.some((ancien, neuf) => ancien !== neuf);
   const etats = {}, notes = {}, vus = [];
   nouvel.forEach((ancien, neuf) => {
     if (E.etats[ancien]) etats[neuf] = E.etats[ancien];
@@ -1041,81 +1114,86 @@ function appliquerOrdre(nouvel, nbFaits) {
   E.etats = etats; E.notes = notes; E.courant = nbFaits < T.p.length ? nbFaits : null;
   signale.clear(); vus.forEach(i => signale.add(i));
   calculerSeuils();
-  majTout();
-  calculerGuide(true);
-  return change;
 }
 
-// Un arret restant est sur mon chemin : il passe juste avant l'arret vise, la suite prevue ne change pas.
-function intercaler(j) {
-  if (!T || j == null || etatDe(j) || j === E.courant || E.courant == null) return false;
-  const faits = faitsDansLOrdre();
-  const autres = T.p.map((s, i) => i).filter(i => !etatDe(i) && i !== j && i !== E.courant);
-  appliquerOrdre(faits.concat([j, E.courant], autres), faits.length);
-  return true;
-}
-
-// Distance (m) d'un point a une ligne, et distance parcourue le long de la ligne jusqu'au point le plus proche.
-function surLaLigne(pt, ligne) {
-  const k = Math.cos(rad(pt.lat)), mx = 111320 * k, my = 110540;
-  let meilleur = { d: Infinity, le_long: 0 }, cumul = 0;
-  for (let i = 1; i < ligne.length; i++) {
-    const ax = ligne[i - 1][1] * mx, ay = ligne[i - 1][0] * my, bx = ligne[i][1] * mx, by = ligne[i][0] * my;
-    const px = pt.lon * mx, py = pt.lat * my, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-    const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
-    const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy)), seg = Math.sqrt(l2);
-    if (d < meilleur.d) meilleur = { d, le_long: cumul + t * seg };
-    cumul += seg;
+// ---- Trace de la tournee : fixe, calcule une fois par la route, de ma position a la voiture par tous les arrets ----
+let ligneTournee = null, marqueurVoiture = null;
+function dessinerTournee() {
+  if (ligneTournee) { ligneTournee.remove(); ligneTournee = null; }
+  const tr = E && E.trace;
+  if (!carte || !tr || !tr.geo || !tr.coupures) return;
+  // seules les parties encore a faire restent : vers un arret pas encore fait, et le retour a la voiture
+  const faits = new Set(T.p.filter((s, i) => etatDe(i)).map(cleStop));
+  const parts = [];
+  for (let w = 0; w + 1 < tr.coupures.length; w++) {
+    if (tr.cles[w] && faits.has(tr.cles[w])) continue;
+    parts.push(tr.geo.slice(tr.coupures[w], tr.coupures[w + 1] + 1));
   }
-  meilleur.total = cumul;
-  return meilleur;
+  if (parts.length) ligneTournee = L.polyline(parts, { color: '#168F61', weight: 6, opacity: .8, interactive: false }).addTo(carte);
 }
-// Sur le trajet vers l'arret vise, le premier arret restant a moins de 25 m du chemin (et pas deja au bout).
-const PRES_DU_CHEMIN = 25;
-function arretSurLeChemin(ligne) {
-  let choix = null;
-  T.p.forEach((s, i) => {
-    if (i === E.courant || etatDe(i)) return;
-    const r = surLaLigne(s, ligne);
-    if (r.d <= PRES_DU_CHEMIN && r.le_long < r.total - 15 && (!choix || r.le_long < choix.le_long)) choix = { i, le_long: r.le_long };
-  });
-  return choix ? choix.i : null;
-}
-
-// Bouton « Refaire l'ordre » : les restants depuis ma position.
-async function reorganiser() {
+async function tracer(voitureIci) {
   if (!T) return;
-  if (!derniere) { toast('Position pas encore connue'); return; }
+  if (!derniere) { toast('Position pas encore connue : attendez le point bleu'); return; }
   const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
-  if (restants.length < 3) { toast('Moins de trois arrêts restants'); return; }
-  const ok = await demander('Refaire l’ordre depuis ici ?',
-    `${pluriel(restants.length, 'arrêt')} restants seront remis dans l’ordre le plus court depuis votre position. `
-    + 'Les arrêts déjà faits ne bougent pas.', 'Refaire l’ordre');
-  if (!ok) return;
+  if (!restants.length) { toast('Tous les arrêts sont faits'); return; }
+  if (voitureIci || !E.voiture) E.voiture = { lat: derniere.lat, lon: derniere.lon };
   propose = true;
-  reordonner(derniere);
-  toast(`Ordre refait : ${pluriel(restants.length, 'arrêt')} depuis votre position`);
+  const depart = { lat: derniere.lat, lon: derniere.lon }, fin = E.voiture;
+  const ordre = ordreBoucle(depart, fin, restants.map(i => T.p[i])).map(k => restants[k]);
+  const faits = faitsDansLOrdre();
+  appliquerOrdre(faits.concat(ordre), faits.length);
+  E.trace = null;
+  majTout();
+  toast('Calcul du tracé par la route…');
+  const arrets = T.p.slice(faits.length);
+  const pts = [depart, ...arrets, fin];
+  try {
+    const url = OSRM + pts.map(x => `${x.lon.toFixed(6)},${x.lat.toFixed(6)}`).join(';') + '?overview=full&geometries=geojson';
+    const j = await (await fetch(url)).json();
+    if (j.code !== 'Ok' || !j.routes.length) throw new Error('trace');
+    const geo = j.routes[0].geometry.coordinates.map(c => [+c[1].toFixed(6), +c[0].toFixed(6)]);
+    // ou chaque arret tombe sur le trace (dans l'ordre), pour n'afficher que ce qui reste a faire
+    const coupures = [];
+    let depuis = 0;
+    j.waypoints.forEach((w, k) => {
+      let mieux = depuis, dmin = Infinity;
+      for (let g = depuis; g < geo.length; g++) {
+        const dd = distance({ lat: geo[g][0], lon: geo[g][1] }, { lat: w.location[1], lon: w.location[0] });
+        if (dd < dmin) { dmin = dd; mieux = g; }
+      }
+      coupures.push(k === j.waypoints.length - 1 ? geo.length - 1 : mieux);
+      depuis = mieux;
+    });
+    E.trace = { geo, coupures, cles: arrets.map(cleStop), km: j.routes[0].distance / 1000 };
+    majTout();
+    toast(`Tracé prêt : ${pluriel(arrets.length, 'arrêt')}, ${E.trace.km.toFixed(1).replace('.', ',')} km, retour à la voiture`);
+  } catch (e) {
+    toast('Tracé par la route indisponible sans réseau : l’ordre des arrêts est quand même prêt');
+  }
+  calculerGuide(true);
 }
-
-// Arret choisi a la main (point de la carte, ligne de la liste) : il devient le suivant et la suite est
-// renumerotee depuis lui. Si c'etait deja le suivant prevu, rien ne bouge.
+// Bouton voiture : la premiere fois « je suis garé ici », ensuite « recalculer depuis ici » (la voiture ne bouge pas).
+async function boutonTrace(forcerVoiture) {
+  if (!T) return;
+  if (!derniere) { toast('Position pas encore connue : attendez le point bleu'); return; }
+  const garer = forcerVoiture || !E.voiture;
+  const ok = await demander(garer ? 'Vous êtes garé ici ?' : 'Recalculer le tracé depuis ici ?',
+    garer ? 'La tournée part d’ici et revient ici, par la route, avec le moins de chemin possible. Un côté de rue à l’aller, l’autre au retour.'
+          : 'Les arrêts restants, dans le meilleur ordre depuis votre position, puis retour à la voiture.',
+    garer ? 'Garé ici, tracer' : 'Recalculer');
+  if (ok) tracer(garer);
+}
+// Arret choisi a la main (point de la carte, ligne de la liste) : il devient l'arret en cours ; le trace ne change pas.
 function choisirArret(i) {
   if (!T || i == null || etatDe(i)) return;
-  if (i === E.courant) { majTout(); return; }
-  propose = true;
-  if (reordonner(null, i)) toast(`Suite renumérotée depuis ${T.p[E.courant].a}`);
+  E.courant = i;
+  majTout();
 }
-
-// Au premier point GPS : si un autre arret restant est bien plus proche, on le propose une seule fois.
+// Au premier point GPS, sans voiture enregistree : on propose de tracer la tournee depuis ici.
 function proposerOrdre() {
-  if (propose || !T || !derniere || E.courant == null) return;
-  const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
-  if (restants.length < 3) return;
-  let proche = restants[0];
-  restants.forEach(i => { if (distance(derniere, T.p[i]) < distance(derniere, T.p[proche])) proche = i; });
-  if (proche === E.courant || distance(derniere, T.p[E.courant]) - distance(derniere, T.p[proche]) < 150) return;
+  if (propose || !T || !derniere || E.voiture || T.p.some((s, i) => etatDe(i))) return;
   propose = true;
-  toast(`Le n° ${proche + 1} est plus proche de vous`, reorganiser, 'Refaire l’ordre');
+  toast('Vous êtes garé ? Tracez la tournée depuis ici', () => tracer(true), 'Garé ici');
 }
 
 // Liste, bilan
@@ -1129,7 +1207,7 @@ function majListe() {
     const li = document.createElement('li');
     li.className = st || (i === E.courant ? 'courant' : '');
     const n = document.createElement('span'); n.className = 'n';
-    if (st === 'depose') n.innerHTML = svg('coche'); else n.textContent = i + 1;
+    if (st === 'depose') n.innerHTML = svg('coche'); else n.textContent = numeroImmeuble(s);
     const a = document.createElement('span'); a.className = 'a'; a.textContent = s.a;
     const sous = document.createElement('small');
     sous.textContent = E.notes[i] ? `Note : ${E.notes[i]}` : `${s.l} · ${pluriel(s.b, 'propriétaire')}`;
@@ -1139,7 +1217,7 @@ function majListe() {
     b.textContent = st === 'depose' ? 'Déposé' : st === 'passe' ? (E.etats[i].r || 'Passé') : i === E.courant ? 'En cours' : pluriel(s.b, 'boîte');
     li.append(n, a, b);
     li.onclick = async () => {
-      if (st && !(await demander(`Remettre le n° ${i + 1} à faire ?`, s.a, 'Remettre à faire'))) return;
+      if (st && !(await demander(`Remettre ${s.a} à faire ?`, s.l, 'Remettre à faire'))) return;
       delete E.etats[i]; $('#liste').hidden = true;
       choisirArret(i);
       regleSuivi(false); carte.setView([s.lat, s.lon], Math.max(carte.getZoom(), ZOOM_NUMEROS), { animate: false });
@@ -1159,10 +1237,10 @@ function bilan() {
   const lignes = [
     `Bilan tournée ${T.nom} (${T.id})`,
     `Déposé : ${pluriel(dep.length, 'immeuble')}, ${pluriel(proprios, 'propriétaire')}`,
-    `Passé : ${pas.length}${pas.length ? ' (' + pas.map(i => `n° ${i + 1} ${E.etats[i].r || 'sans raison'}`).join(', ') + ')' : ''}`,
-    `Reste : ${reste.length}${reste.length ? ' (n° ' + reste.map(i => i + 1).join(', ') + ')' : ''}`,
+    `Passé : ${pas.length}${pas.length ? ' (' + pas.map(i => `${T.p[i].a} : ${E.etats[i].r || 'sans raison'}`).join(', ') + ')' : ''}`,
+    `Reste : ${reste.length}${reste.length ? ' (' + reste.map(i => T.p[i].a).join(', ') + ')' : ''}`,
   ];
-  if (notes.length) lignes.push('Notes : ' + notes.map(([i, t]) => `n° ${+i + 1} ${T.p[i].a} : ${t}`).join(' ; '));
+  if (notes.length) lignes.push('Notes : ' + notes.map(([i, t]) => `${T.p[i].a} : ${t}`).join(' ; '));
   // Ligne de données reprise telle quelle par Claude pour mettre le CRM à jour.
   const donnees = { tournee: T.id, depose: dep.flatMap(i => T.p[i].u), passe: {}, notes: [] };
   pas.forEach(i => { const r = E.etats[i].r || 'Sans raison'; (donnees.passe[r] = donnees.passe[r] || []).push(...T.p[i].u); });
@@ -1182,6 +1260,7 @@ async function envoyerBilan() {
 
 // Accueil : les tournees du telephone
 function accueil(erreur, info) {
+  if (document.body.classList.contains('plein')) basculerPlein(false);
   $('#app').hidden = true; $('#liste').hidden = true; $('#accueil').hidden = false;
   $('#erreur').textContent = erreur || ''; $('#erreur').hidden = !erreur;
   $('#info').textContent = info || ''; $('#info').hidden = !info;
@@ -1288,7 +1367,7 @@ $('#btnNote').onclick = () => {
   const i = E && E.courant;
   if (i == null) return;
   noteIndex = i;
-  $('#noteTitre').textContent = `Note pour le n° ${i + 1}`;
+  $('#noteTitre').textContent = `Note pour ${T.p[i].a}`;
   $('#noteSous').textContent = T.p[i].a;
   $('#noteTexte').value = E.notes[i] || '';
   $('#noteEffacer').hidden = !E.notes[i];
@@ -1319,11 +1398,48 @@ $('#btnVoix').onclick = () => {
   if (voix) parler('Voix activée'); else if ('speechSynthesis' in window) try { speechSynthesis.cancel(); } catch (e) {}
 };
 // Android charge les voix apres coup : rien a faire, voixFr() les relit a chaque annonce.
-$('#btnOrdre').onclick = reorganiser;
+$('#btnOrdre').onclick = () => boutonTrace(false);
+$('#btnRetour').onclick = basculerGuide;
+
+// Volet : un toucher sur la poignee (ou un glisse vers le bas) le replie, il ne reste que l'adresse suivante.
+// Replie, un toucher n'importe ou dessus (ou un glisse vers le haut) le rouvre.
+function replier(v) {
+  $('#fiche').classList.toggle('replie', v);
+  setTimeout(() => carte && carte.invalidateSize(), 60);
+}
+$('#fiche .poignee').addEventListener('click', e => { e.stopPropagation(); replier(!$('#fiche').classList.contains('replie')); });
+$('#fiche').addEventListener('click', e => {
+  if ($('#fiche').classList.contains('replie') && !e.target.closest('button,a')) replier(false);
+});
+let glisseY = null;
+$('#fiche').addEventListener('touchstart', e => { glisseY = e.target.closest('button,a,textarea') ? null : e.touches[0].clientY; }, { passive: true });
+$('#fiche').addEventListener('touchend', e => {
+  if (glisseY == null) return;
+  const dy = e.changedTouches[0].clientY - glisseY;
+  glisseY = null;
+  if (dy > 45) replier(true); else if (dy < -45) replier(false);
+}, { passive: true });
+
+// Plein ecran : la carte seule (plus de barre du haut ni d'onglets), volet replie ; le telephone passe en plein ecran.
+function basculerPlein(v) {
+  const plein = v === undefined ? !document.body.classList.contains('plein') : v;
+  document.body.classList.toggle('plein', plein);
+  replier(plein);
+  $('#btnPlein').innerHTML = svg(plein ? 'reduire' : 'plein');
+  $('#btnPlein').setAttribute('aria-label', plein ? 'Quitter le plein écran' : 'Plein écran : la carte seule');
+  try {
+    if (plein && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else if (!plein && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch (e) {}
+  setTimeout(() => carte && carte.invalidateSize(), 300);
+}
+$('#btnPlein').onclick = () => basculerPlein();
+// Geste retour du telephone : il quitte le plein ecran, l'appli revient a l'affichage normal.
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('plein')) basculerPlein(false); });
 $('#btnOrdreListe').onclick = () => {
   $('#liste').hidden = true;
   setTimeout(() => carte && carte.invalidateSize(), 50);
-  reorganiser();
+  boutonTrace(true);
 };
 $('#btnListe').onclick = ouvrirListe;
 $('#tabCarte').onclick = montrerCarte;
