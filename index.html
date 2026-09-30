@@ -484,7 +484,7 @@ const $ = s => document.querySelector(s);
 const CLE = 'tournee:', DERNIERE = 'tournee-derniere', TRACE = 'tournee-trace:';
 const ZOOM_NUMEROS = 17;
 let T = null, E = null, seuils = [];
-let carte = null, marqueurs = [], moi = null, halo = null;
+let carte = null, marqueurs = [], moi = null, halo = null, observeCarte = null;
 let suivre = true, derniere = null, watchId = null, toastMinuterie = null;
 const signale = new Set();
 const svg = nom => `<svg class="ic" aria-hidden="true"><use href="#i-${nom}"/></svg>`;
@@ -612,7 +612,7 @@ function demarrer(t, e) {
   $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
   $('#titre').textContent = T.nom;
   if (carte) { carte.remove(); carte = null; }
-  marqueurs = []; moi = null; halo = null; posPrecedente = null; ligneTournee = null; marqueurVoiture = null;
+  marqueurs = []; moi = null; halo = null; posPrecedente = null; marqueurVoiture = null;
   // rotate : la carte peut tourner (sens de la marche) ; pas de rotation a deux doigts, trop facile a declencher
   carte = L.map('carte', { zoomControl: false, rotate: true, rotateControl: false, touchRotate: false, bearing: 0 });
   carte.attributionControl.setPrefix(false);
@@ -621,6 +621,15 @@ function demarrer(t, e) {
   // la barre du haut et la fiche du bas couvrent la carte : les arrets restent visibles entre les deux
   carte.fitBounds(L.latLngBounds(T.p.map(s => [s.lat, s.lon])), { paddingTopLeft: [24, 110], paddingBottomRight: [24, 60] });
   carte.on('dragstart', () => regleSuivi(false));
+  if (window.ResizeObserver) {
+    if (observeCarte) observeCarte.disconnect();
+    observeCarte = new ResizeObserver(() => {
+      if (!carte) return;
+      carte.invalidateSize({ pan: false });
+      if (suivre && derniere) carte.panTo([derniere.lat, derniere.lon], { animate: false });
+    });
+    observeCarte.observe($('#zoneCarte'));
+  }
   majZoom();
   majTout();
   suivrePosition();
@@ -661,7 +670,7 @@ function dessiner() {
   $('#btnOrdre').setAttribute('aria-label', E.voiture ? 'Recalculer le tracé depuis ici' : 'Je suis garé ici : tracer la tournée');
 }
 
-function majTout() { dessiner(); dessinerTournee(); majFiche(); majListe(); sauver(); }
+function majTout() { dessiner(); majFiche(); majListe(); sauver(); }
 
 function majFiche() {
   const n = T.p.length;
@@ -728,6 +737,8 @@ function marquer(statut, raison) {
   if (navigator.vibrate) navigator.vibrate(statut === 'depose' ? 60 : [30, 40, 30]);
   majTout();
   if (nx != null && suivre === false) carte.panTo([T.p[nx].lat, T.p[nx].lon]);
+  // Le guidage enchaine sur l'arret suivant (ou sur la voiture a la fin), et n'affiche que ce trajet.
+  if (!guidage) basculerGuide(); else { manoeuvre = null; calculerGuide(true); }
   // Annuler retrouve l'arret par lui-meme (l'ordre a pu etre recalcule entre-temps).
   const arret = T.p[i];
   toast(`${arret.a} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
@@ -777,7 +788,7 @@ function positionner(lat, lon, acc) {
   const ici = { lat, lon };
   if (!posPrecedente) posPrecedente = ici;
   else if (distance(posPrecedente, ici) >= 8) { nouveauCap(relevement(posPrecedente, ici), 'marche'); posPrecedente = ici; }
-  if (suivre) carte.panTo([lat, lon], { animate: true });
+  if (suivre) carte.panTo([lat, lon], { animate: !cap });
   orienterMoi();
   // Tournee finie, de retour a la voiture : on le dit et le guidage s'arrete.
   if (guidage && T && E.courant == null && E.voiture && distance(ici, E.voiture) <= 25) {
@@ -787,6 +798,7 @@ function positionner(lat, lon, acc) {
   }
   majDistance();
   majManoeuvre();
+  surveillerEcart(ici);
   calculerGuide();
   proposerOrdre();
 }
@@ -828,7 +840,10 @@ function appliquerCap(tout) {
     if (cap && suivre && orientation != null) {
       // l'extension tourne la carte dans le sens des aiguilles : pour mettre ma direction en haut, angle oppose
       const vise = (360 - orientation) % 360;
-      if (tout || Math.abs(ecartAngle(carte.getBearing(), vise)) > 3) carte.setBearing(vise);
+      if (tout || Math.abs(ecartAngle(carte.getBearing(), vise)) > 3) {
+        carte.setBearing(vise);
+        if (derniere) carte.panTo([derniere.lat, derniere.lon], { animate: false });  // je reste au centre apres la rotation
+      }
     } else if (!cap && tout && carte.getBearing() !== 0) carte.setBearing(0);
     orienterMoi();
   }, tout ? 0 : 150);
@@ -876,6 +891,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 const OSRM = 'https://routing.openstreetmap.de/routed-car/route/v1/driving/';
 const MINUTES = m => Math.max(1, Math.round(m / 200));  // trottinette, environ 12 km/h
 let guidage = false, ligneGuide = null, calculEnCours = false, dernierCalcul = 0, posCalcul = null, propose = false;
+let geoGuide = null, ecartDepuis = 0, dernierRecalage = 0;
+const ECART_MAX = 35;   // au-dela, je ne suis plus le trajet : on le refait
 const COTES = { left: 'à gauche', right: 'à droite', 'slight left': 'légèrement à gauche', 'slight right': 'légèrement à droite',
                 'sharp left': 'à gauche en épingle', 'sharp right': 'à droite en épingle', straight: 'tout droit', uturn: 'demi-tour' };
 const FLECHES = { left: '↰', right: '↱', 'slight left': '↖', 'slight right': '↗', 'sharp left': '↰', 'sharp right': '↱',
@@ -951,6 +968,7 @@ function majManoeuvre() {
 
 function arreterGuide() {
   guidage = false; posCalcul = null; dernierCalcul = 0; manoeuvre = null; arretAnnonce = null;
+  geoGuide = null; ecartDepuis = 0;
   if ('speechSynthesis' in window) try { speechSynthesis.cancel(); } catch (e) {}
   if (ligneGuide) { ligneGuide.remove(); ligneGuide = null; }
   $('#manoeuvre').hidden = true;
@@ -987,10 +1005,11 @@ async function calculerGuide(force) {
     const j = await (await fetch(url)).json();
     if (!guidage || !carte || j.code !== 'Ok' || !j.routes.length) throw new Error('itineraire');
     const route = j.routes[0], pas = (route.legs[0] || {}).steps || [];
+    // Etape par etape : seul le trajet jusqu'au prochain arret est dessine.
     const ligne = route.geometry.coordinates.map(c => [c[1], c[0]]);
-    // Avec le trace de la tournee affiche, on ne dessine pas un second chemin : la voix et le bandeau le suivent.
-    if (ligneGuide) { ligneGuide.remove(); ligneGuide = null; }
-    if (!E.trace) ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
+    if (ligneGuide) ligneGuide.remove();
+    ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
+    geoGuide = ligne; ecartDepuis = 0;
     const suivant = pas.length > 1 ? pas[1] : pas[0];
     const { texte, fleche } = texteManoeuvre(suivant);
     const avant = pas.length ? pas[0].distance : route.distance;
@@ -1020,6 +1039,31 @@ async function calculerGuide(force) {
   } finally { calculEnCours = false; }
 }
 
+// Distance (m) entre un point et le trajet affiche : sert a voir que je ne le suis plus.
+function ecartAuTrajet(pt, ligne) {
+  const k = Math.cos(rad(pt.lat)), mx = 111320 * k, my = 110540, px = pt.lon * mx, py = pt.lat * my;
+  let mini = Infinity;
+  for (let i = 1; i < ligne.length; i++) {
+    const ax = ligne[i - 1][1] * mx, ay = ligne[i - 1][0] * my, bx = ligne[i][1] * mx, by = ligne[i][0] * my;
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    mini = Math.min(mini, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
+  }
+  return mini;
+}
+// Je me suis trompe de rue : apres deux points GPS de suite loin du trajet, on le refait depuis ou je suis.
+function surveillerEcart(ici) {
+  if (!guidage || !geoGuide || !derniere) return;
+  const ecart = ecartAuTrajet(ici, geoGuide);
+  if (ecart <= ECART_MAX) { ecartDepuis = 0; return; }
+  if (!ecartDepuis) { ecartDepuis = Date.now(); return; }
+  if (Date.now() - ecartDepuis < 6000 || Date.now() - dernierRecalage < 15000) return;
+  dernierRecalage = Date.now(); ecartDepuis = 0;
+  toast('Vous avez quitté le trajet : nouveau calcul');
+  parler('Nouveau calcul');
+  calculerGuide(true);
+}
+
 // Ou guider : l'arret en cours, ou la voiture quand la tournee est finie.
 function cible() {
   if (E.courant != null && T.p[E.courant]) { const s = T.p[E.courant]; return { lat: s.lat, lon: s.lon, a: s.a, cle: cleStop(s) }; }
@@ -1033,16 +1077,22 @@ function cible() {
 // au retour quand le parcours repasse par la rue. On part de la voiture et on y revient.
 const COUPURE_COTE = 250;  // au-dela, deux maisons du meme cote de la meme rue forment deux morceaux
 const sansAccent = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function centreDe(points, ids) {
+  return { lat: ids.reduce((s, i) => s + points[i].lat, 0) / ids.length,
+           lon: ids.reduce((s, i) => s + points[i].lon, 0) / ids.length };
+}
 function cotesDeRue(points) {
   const groupes = new Map();
   points.forEach((pt, i) => {
     const d = decoupe(pt.a);
-    const cle = d.num == null ? `?${i}` : `${sansAccent(d.rue)}|${sansAccent(pt.l)}|${d.num % 2}`;
-    if (!groupes.has(cle)) groupes.set(cle, []);
-    groupes.get(cle).push(i);
+    const rue = d.num == null ? `?${i}` : `${sansAccent(d.rue)}|${sansAccent(pt.l)}`;
+    const cle = d.num == null ? `?${i}` : `${rue}|${d.num % 2}`;
+    if (!groupes.has(cle)) groupes.set(cle, { rue, parite: d.num == null ? -1 : d.num % 2, ids: [] });
+    groupes.get(cle).ids.push(i);
   });
   const morceaux = [];
-  groupes.forEach(ids => {
+  groupes.forEach(g => {
+    const ids = g.ids;
     // les maisons dans l'ordre de la rue : projection sur l'axe des deux plus eloignees
     let a = ids[0], b = ids[0], loin = -1;
     ids.forEach(x => ids.forEach(y => { const d = distance(points[x], points[y]); if (d > loin) { loin = d; a = x; b = y; } }));
@@ -1051,24 +1101,46 @@ function cotesDeRue(points) {
     ids.sort((x, y) => proj(x) - proj(y));
     let m = [ids[0]];
     for (let j = 1; j < ids.length; j++) {
-      if (distance(points[ids[j - 1]], points[ids[j]]) > COUPURE_COTE) { morceaux.push(m); m = []; }
+      if (distance(points[ids[j - 1]], points[ids[j]]) > COUPURE_COTE) { morceaux.push({ ids: m, rue: g.rue, parite: g.parite }); m = []; }
       m.push(ids[j]);
     }
-    morceaux.push(m);
+    morceaux.push({ ids: m, rue: g.rue, parite: g.parite });
+  });
+  morceaux.forEach(m => { m.centre = centreDe(points, m.ids); });
+  // de quel cote de la rue : on repere le cote d'en face (meme rue, numeros de l'autre parite)
+  morceaux.forEach(m => {
+    const face = morceaux.filter(o => o !== m && o.parite >= 0 && m.parite >= 0 && o.rue === m.rue && o.parite !== m.parite);
+    if (!face.length) return;
+    let proche = face[0];
+    face.forEach(o => { if (distance(m.centre, o.centre) < distance(m.centre, proche.centre)) proche = o; });
+    m.enFace = proche.centre;
   });
   return morceaux;
 }
+// On roule a droite : dans une rue, on longe d'abord le cote qui est a notre droite. Un cote pris a l'envers
+// coute PENALITE_COTE metres « en plus » : a distance egale, le bon cote gagne, mais un gros detour reste evite.
+const PENALITE_COTE = 80;
 function ordreBoucle(depart, fin, points) {
   const M = cotesDeRue(points);
-  const entree = x => points[x.sens ? M[x.m][M[x.m].length - 1] : M[x.m][0]];
-  const sortie = x => points[x.sens ? M[x.m][0] : M[x.m][M[x.m].length - 1]];
+  const entree = x => points[x.sens ? M[x.m].ids[M[x.m].ids.length - 1] : M[x.m].ids[0]];
+  const sortie = x => points[x.sens ? M[x.m].ids[0] : M[x.m].ids[M[x.m].ids.length - 1]];
+  function malCote(x) {
+    const mo = M[x.m];
+    if (!mo.enFace) return 0;
+    const a = entree(x), b = sortie(x), k = Math.cos(rad(a.lat));
+    const dx = (b.lon - a.lon) * k, dy = b.lat - a.lat;
+    if (!dx && !dy) return 0;
+    const ox = (mo.centre.lon - mo.enFace.lon) * k, oy = mo.centre.lat - mo.enFace.lat;
+    // a droite du sens de marche : le cote est du bon cote si ox*dy - oy*dx > 0
+    return ox * dy - oy * dx > 0 ? 0 : PENALITE_COTE;
+  }
   // plus proche d'abord, en choisissant le sens de chaque morceau
   const reste = M.map((m, i) => i), seq = [];
   let ici = depart;
   while (reste.length) {
     let mieux = null;
     reste.forEach((m, k) => [false, true].forEach(sens => {
-      const d = distance(ici, entree({ m, sens }));
+      const d = distance(ici, entree({ m, sens })) + malCote({ m, sens });
       if (!mieux || d < mieux.d) mieux = { d, k, m, sens };
     }));
     reste.splice(mieux.k, 1);
@@ -1084,7 +1156,8 @@ function ordreBoucle(depart, fin, points) {
     for (let i = 0; i < seq.length; i++) {
       for (let j = i; j < seq.length; j++) {
         const actuel = d(avant(i), entree(seq[i])) + d(sortie(seq[j]), apres(j));
-        const retourne = d(avant(i), sortie(seq[j])) + d(entree(seq[i]), apres(j));
+        const cote = seq.slice(i, j + 1).reduce((s, x) => s + malCote({ m: x.m, sens: !x.sens }) - malCote(x), 0);
+        const retourne = d(avant(i), sortie(seq[j])) + d(entree(seq[i]), apres(j)) + cote;
         if (retourne + 1 < actuel) {
           const bout = seq.slice(i, j + 1).reverse().map(x => ({ m: x.m, sens: !x.sens }));
           seq.splice(i, j - i + 1, ...bout);
@@ -1094,7 +1167,7 @@ function ordreBoucle(depart, fin, points) {
     }
     if (!gagne) break;
   }
-  return seq.flatMap(x => (x.sens ? M[x.m].slice().reverse() : M[x.m]));
+  return seq.flatMap(x => (x.sens ? M[x.m].ids.slice().reverse() : M[x.m].ids));
 }
 
 // Arrets faits, dans l'ordre ou ils ont ete faits.
@@ -1116,21 +1189,8 @@ function appliquerOrdre(nouvel, nbFaits) {
   calculerSeuils();
 }
 
-// ---- Trace de la tournee : fixe, calcule une fois par la route, de ma position a la voiture par tous les arrets ----
-let ligneTournee = null, marqueurVoiture = null;
-function dessinerTournee() {
-  if (ligneTournee) { ligneTournee.remove(); ligneTournee = null; }
-  const tr = E && E.trace;
-  if (!carte || !tr || !tr.geo || !tr.coupures) return;
-  // seules les parties encore a faire restent : vers un arret pas encore fait, et le retour a la voiture
-  const faits = new Set(T.p.filter((s, i) => etatDe(i)).map(cleStop));
-  const parts = [];
-  for (let w = 0; w + 1 < tr.coupures.length; w++) {
-    if (tr.cles[w] && faits.has(tr.cles[w])) continue;
-    parts.push(tr.geo.slice(tr.coupures[w], tr.coupures[w + 1] + 1));
-  }
-  if (parts.length) ligneTournee = L.polyline(parts, { color: '#168F61', weight: 6, opacity: .8, interactive: false }).addTo(carte);
-}
+// ---- Ordre de passage : calcule une fois depuis la voiture. La carte, elle, ne montre que l'etape en cours. ----
+let marqueurVoiture = null;
 async function tracer(voitureIci) {
   if (!T) return;
   if (!derniere) { toast('Position pas encore connue : attendez le point bleu'); return; }
@@ -1142,35 +1202,16 @@ async function tracer(voitureIci) {
   const ordre = ordreBoucle(depart, fin, restants.map(i => T.p[i])).map(k => restants[k]);
   const faits = faitsDansLOrdre();
   appliquerOrdre(faits.concat(ordre), faits.length);
-  E.trace = null;
+  delete E.trace;
   majTout();
-  toast('Calcul du tracé par la route…');
-  const arrets = T.p.slice(faits.length);
-  const pts = [depart, ...arrets, fin];
-  try {
-    const url = OSRM + pts.map(x => `${x.lon.toFixed(6)},${x.lat.toFixed(6)}`).join(';') + '?overview=full&geometries=geojson';
-    const j = await (await fetch(url)).json();
-    if (j.code !== 'Ok' || !j.routes.length) throw new Error('trace');
-    const geo = j.routes[0].geometry.coordinates.map(c => [+c[1].toFixed(6), +c[0].toFixed(6)]);
-    // ou chaque arret tombe sur le trace (dans l'ordre), pour n'afficher que ce qui reste a faire
-    const coupures = [];
-    let depuis = 0;
-    j.waypoints.forEach((w, k) => {
-      let mieux = depuis, dmin = Infinity;
-      for (let g = depuis; g < geo.length; g++) {
-        const dd = distance({ lat: geo[g][0], lon: geo[g][1] }, { lat: w.location[1], lon: w.location[0] });
-        if (dd < dmin) { dmin = dd; mieux = g; }
-      }
-      coupures.push(k === j.waypoints.length - 1 ? geo.length - 1 : mieux);
-      depuis = mieux;
-    });
-    E.trace = { geo, coupures, cles: arrets.map(cleStop), km: j.routes[0].distance / 1000 };
-    majTout();
-    toast(`Tracé prêt : ${pluriel(arrets.length, 'arrêt')}, ${E.trace.km.toFixed(1).replace('.', ',')} km, retour à la voiture`);
-  } catch (e) {
-    toast('Tracé par la route indisponible sans réseau : l’ordre des arrêts est quand même prêt');
-  }
-  calculerGuide(true);
+  // longueur approximative de la boucle (a vol d'oiseau, majoree du detour des rues)
+  const arrets = T.p.slice(faits.length), pts = [depart, ...arrets, fin];
+  let km = 0;
+  for (let i = 1; i < pts.length; i++) km += distance(pts[i - 1], pts[i]);
+  km = km * 1.25 / 1000;
+  toast(`Tournée prête : ${pluriel(arrets.length, 'arrêt')}, environ ${km.toFixed(1).replace('.', ',')} km, retour à la voiture`);
+  // le guidage part tout de suite vers le premier arret
+  if (!guidage) basculerGuide(); else { manoeuvre = null; calculerGuide(true); }
 }
 // Bouton voiture : la premiere fois « je suis garé ici », ensuite « recalculer depuis ici » (la voiture ne bouge pas).
 async function boutonTrace(forcerVoiture) {
@@ -1178,7 +1219,7 @@ async function boutonTrace(forcerVoiture) {
   if (!derniere) { toast('Position pas encore connue : attendez le point bleu'); return; }
   const garer = forcerVoiture || !E.voiture;
   const ok = await demander(garer ? 'Vous êtes garé ici ?' : 'Recalculer le tracé depuis ici ?',
-    garer ? 'La tournée part d’ici et revient ici, par la route, avec le moins de chemin possible. Un côté de rue à l’aller, l’autre au retour.'
+    garer ? 'La tournée part d’ici et revient ici, avec le moins de chemin possible : chaque rue se fait d’abord par le côté droit, l’autre côté au retour. La carte guide ensuite d’un arrêt au suivant.'
           : 'Les arrêts restants, dans le meilleur ordre depuis votre position, puis retour à la voiture.',
     garer ? 'Garé ici, tracer' : 'Recalculer');
   if (ok) tracer(garer);
