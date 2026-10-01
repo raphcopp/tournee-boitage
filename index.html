@@ -510,7 +510,8 @@ async function decoder(s) {
 function normaliser(d) {
   if (!d || !d.id || !Array.isArray(d.p) || !d.p.length) throw new Error('format');
   return { id: String(d.id), nom: String(d.nom || 'Tournée'), date: String(d.date || ''),
-    p: d.p.map(x => ({ a: String(x[0]), l: String(x[1] || ''), lat: +x[2], lon: +x[3], b: +x[4] || 0, u: Array.isArray(x[5]) ? x[5] : [] })) };
+    p: d.p.map(x => ({ a: String(x[0]), l: String(x[1] || ''), lat: +x[2], lon: +x[3], b: +x[4] || 0, u: Array.isArray(x[5]) ? x[5] : [],
+                       bx: +x[6] || 0, e: Array.isArray(x[7]) && x[7].length > 1 ? x[7].map(y => [String(y[0]), +y[1] || 0]) : null })) };
 }
 function tourneesDuLien(d) {
   if (d && d.v === 2 && Array.isArray(d.t) && d.t.length) return d.t.map(normaliser);
@@ -651,7 +652,25 @@ function decoupe(adresse) {
   const m = String(adresse || '').match(RE_NUMERO);
   return m ? { rue: m[1].trim(), num: +m[2], lettre: m[3].toLowerCase() } : { rue: String(adresse || '').trim(), num: null, lettre: '' };
 }
-function numeroImmeuble(s) { const d = decoupe(s.a); return d.num != null ? `${d.num}${d.lettre}` : '•'; }
+function numeroImmeuble(s) {
+  // immeuble a plusieurs numeros : « 7–9 », ou « 5·6 » pour deux
+  if (s.e) return s.e.length > 2 ? `${s.e[0][0]}–${s.e[s.e.length - 1][0]}` : s.e.map(x => x[0]).join('·');
+  const d = decoupe(s.a);
+  return d.num != null ? `${d.num}${d.lettre}` : '•';
+}
+// Adresse complete d'un arret : « Chemin de Longet 7, 8 et 9 » quand l'immeuble a plusieurs numeros.
+function adresseArret(s) {
+  if (!s.e) return s.a;
+  const nos = s.e.map(x => x[0]);
+  if (nos.some(n => n.includes(' '))) return nos.join(' · ');
+  return `${decoupe(s.a).rue} ${nos.slice(0, -1).join(', ')} et ${nos[nos.length - 1]}`;
+}
+// Boites aux lettres d'un arret (registre federal des batiments), sinon nombre de proprietaires.
+const boitesArret = s => s.bx || s.b || 1;
+function detailBoites(s) {
+  const n = boitesArret(s);
+  return `${pluriel(n, 'boîte')}` + (s.e ? ` (${s.e.map(x => `n° ${x[0]} : ${x[1]}`).join(', ')})` : '');
+}
 const cleStop = s => `${s.a}|${s.lat}|${s.lon}`;
 
 function icone(i) {
@@ -697,8 +716,8 @@ function majFiche() {
   const num = numeroImmeuble(s);
   $('#num').textContent = num;
   $('#num').style.fontSize = num.length > 3 ? '15px' : '';
-  $('#adresse').textContent = s.a;
-  $('#infos').textContent = `${s.l} · ${pluriel(s.b, 'propriétaire')}`;
+  $('#adresse').textContent = adresseArret(s);
+  $('#infos').textContent = `${s.l} · ${detailBoites(s)}`;
   const note = E.notes[E.courant];
   $('#noteTxt').textContent = note ? `Note : ${note}` : '';
   $('#noteTxt').hidden = !note;
@@ -719,7 +738,7 @@ function majDistance() {
     if (!signale.has(E.courant)) {
       signale.add(E.courant);
       if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
-      parler(`Vous y êtes. ${s.a}`);
+      parler(`Vous y êtes. ${adresseArret(s)}`);
     }
   } else {
     $('#distance').textContent = d < 1000 ? `À ${Math.round(d)} m` : `À ${(d / 1000).toFixed(1).replace('.', ',')} km`;
@@ -741,7 +760,7 @@ function marquer(statut, raison) {
   if (!guidage) basculerGuide(); else { manoeuvre = null; calculerGuide(true); }
   // Annuler retrouve l'arret par lui-meme (l'ordre a pu etre recalcule entre-temps).
   const arret = T.p[i];
-  toast(`${arret.a} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
+  toast(`${adresseArret(arret)} ${statut === 'depose' ? 'déposé' : `passé${raison ? ' : ' + raison : ''}`}`, () => {
     const j = T.p.indexOf(arret);
     if (j < 0) return;
     delete E.etats[j];
@@ -1066,7 +1085,7 @@ function surveillerEcart(ici) {
 
 // Ou guider : l'arret en cours, ou la voiture quand la tournee est finie.
 function cible() {
-  if (E.courant != null && T.p[E.courant]) { const s = T.p[E.courant]; return { lat: s.lat, lon: s.lon, a: s.a, cle: cleStop(s) }; }
+  if (E.courant != null && T.p[E.courant]) { const s = T.p[E.courant]; return { lat: s.lat, lon: s.lon, a: adresseArret(s), cle: cleStop(s) }; }
   if (E.voiture && T.p.every((s, i) => etatDe(i))) return { lat: E.voiture.lat, lon: E.voiture.lon, a: 'la voiture', cle: 'voiture' };
   return null;
 }
@@ -1249,16 +1268,16 @@ function majListe() {
     li.className = st || (i === E.courant ? 'courant' : '');
     const n = document.createElement('span'); n.className = 'n';
     if (st === 'depose') n.innerHTML = svg('coche'); else n.textContent = numeroImmeuble(s);
-    const a = document.createElement('span'); a.className = 'a'; a.textContent = s.a;
+    const a = document.createElement('span'); a.className = 'a'; a.textContent = adresseArret(s);
     const sous = document.createElement('small');
-    sous.textContent = E.notes[i] ? `Note : ${E.notes[i]}` : `${s.l} · ${pluriel(s.b, 'propriétaire')}`;
+    sous.textContent = E.notes[i] ? `Note : ${E.notes[i]}` : `${s.l} · ${detailBoites(s)}`;
     a.appendChild(sous);
     const b = document.createElement('span');
     b.className = 'pilule' + (st === 'depose' ? ' vert' : !st && i === E.courant ? ' bleu' : '');
-    b.textContent = st === 'depose' ? 'Déposé' : st === 'passe' ? (E.etats[i].r || 'Passé') : i === E.courant ? 'En cours' : pluriel(s.b, 'boîte');
+    b.textContent = st === 'depose' ? 'Déposé' : st === 'passe' ? (E.etats[i].r || 'Passé') : i === E.courant ? 'En cours' : pluriel(boitesArret(s), 'boîte');
     li.append(n, a, b);
     li.onclick = async () => {
-      if (st && !(await demander(`Remettre ${s.a} à faire ?`, s.l, 'Remettre à faire'))) return;
+      if (st && !(await demander(`Remettre ${adresseArret(s)} à faire ?`, s.l, 'Remettre à faire'))) return;
       delete E.etats[i]; $('#liste').hidden = true;
       choisirArret(i);
       regleSuivi(false); carte.setView([s.lat, s.lon], Math.max(carte.getZoom(), ZOOM_NUMEROS), { animate: false });
