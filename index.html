@@ -645,7 +645,7 @@ function premierRestant() {
   return i < 0 ? null : i;
 }
 
-// Numero de l'immeuble (« Chemin de Longet 12b.1 » -> rue « Chemin de Longet », 12, « b ») : c'est lui qui s'affiche,
+// Numero de l'immeuble (« Rue Exemple 12b.1 » -> rue « Rue Exemple », 12, « b ») : c'est lui qui s'affiche,
 // pas l'ordre de passage.
 const RE_NUMERO = /^(.*?)[\s,]+(\d+)\s*([a-z]{0,3})(?:\s*[-/.]\s*\d+\s*[a-z]{0,3})*\s*$/i;
 function decoupe(adresse) {
@@ -658,7 +658,7 @@ function numeroImmeuble(s) {
   const d = decoupe(s.a);
   return d.num != null ? `${d.num}${d.lettre}` : '•';
 }
-// Adresse complete d'un arret : « Chemin de Longet 7, 8 et 9 » quand l'immeuble a plusieurs numeros.
+// Adresse complete d'un arret : « Rue Exemple 7, 8 et 9 » quand l'immeuble a plusieurs numeros.
 function adresseArret(s) {
   if (!s.e) return s.a;
   const nos = s.e.map(x => x[0]);
