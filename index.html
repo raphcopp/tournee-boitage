@@ -1080,6 +1080,7 @@ async function calculerGuide(force) {
   if (!force && !(bouge && maintenant - dernierCalcul > 8000) && maintenant - dernierCalcul < 25000) return;
   const depart = { lat: derniere.lat, lon: derniere.lon };
   calculEnCours = true;
+  let relancer = false;
   try {
     const url = `${OSRM}${depart.lon.toFixed(6)},${depart.lat.toFixed(6)};${s.lon.toFixed(6)},${s.lat.toFixed(6)}`
       + '?overview=full&geometries=geojson&steps=true';
@@ -1088,6 +1089,8 @@ async function calculerGuide(force) {
     const route = j.routes[0], pas = (route.legs[0] || {}).steps || [];
     // Etape par etape : seul le trajet jusqu'au prochain arret est dessine.
     const ligne = route.geometry.coordinates.map(c => [c[1], c[0]]);
+    // des boites bordent ce trajet avant l'arret vise : elles passent avant, et le guidage repart vers la premiere
+    if (intercaler(s, ligne)) { relancer = true; return; }
     if (ligneGuide) ligneGuide.remove();
     ligneGuide = L.polyline(ligne, { color: '#168F61', weight: 7, opacity: .9 }).addTo(carte);
     geoGuide = ligne; ecartDepuis = 0;
@@ -1117,7 +1120,52 @@ async function calculerGuide(force) {
   } catch (e) {
     afficherManoeuvre('↑', 'Itinéraire indisponible', 'Sans réseau : suivez la distance et la carte.');
     dernierCalcul = Date.now();
-  } finally { calculEnCours = false; }
+  } finally {
+    calculEnCours = false;
+    if (relancer) calculerGuide(true); else relancesChemin = 0;
+  }
+}
+
+// Boites sur le chemin : arrets pas encore faits a moins de BORD_CHEMIN m du trajet vers la cible, avant elle.
+// Elles se font en passant, dans l'ordre du trajet ; un arret choisi a la main n'est jamais devance.
+const BORD_CHEMIN = 30;
+let choixManuel = null, relancesChemin = 0;   // garde-fou : au plus 4 reprises de suite
+function surLeTrajet(pt, ligne) {
+  const k = Math.cos(rad(pt.lat)), mx = 111320 * k, my = 110540, px = pt.lon * mx, py = pt.lat * my;
+  let mini = Infinity, avance = 0, parcouru = 0;
+  for (let i = 1; i < ligne.length; i++) {
+    const ax = ligne[i - 1][1] * mx, ay = ligne[i - 1][0] * my, bx = ligne[i][1] * mx, by = ligne[i][0] * my;
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, l = Math.sqrt(l2);
+    const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    if (d < mini) { mini = d; avance = parcouru + t * l; }
+    parcouru += l;
+  }
+  return { ecart: mini, avance, total: parcouru };
+}
+function intercaler(s, ligne) {
+  if (!T || !ligne || ligne.length < 2 || s.cle === choixManuel || relancesChemin >= 4) return false;
+  const viseIdx = s.cle === 'voiture' ? null : E.courant;
+  const fin = surLeTrajet(s, ligne).total;
+  const pris = [];
+  T.p.forEach((x, i) => {
+    if (etatDe(i) || i === viseIdx) return;
+    const t = surLeTrajet(x, ligne);
+    if (t.ecart <= BORD_CHEMIN && t.avance < fin - 15) pris.push({ i, avance: t.avance });
+  });
+  if (!pris.length) return false;
+  pris.sort((a, b) => a.avance - b.avance);
+  relancesChemin++;
+  const ids = pris.map(x => x.i), deja = new Set(ids);
+  if (viseIdx != null) deja.add(viseIdx);
+  const faits = faitsDansLOrdre();
+  const reste = T.p.map((x, i) => i).filter(i => !etatDe(i) && !deja.has(i));
+  if (E.versVoiture) E.retour = (E.retour || []).concat(ids.map(i => cleStop(T.p[i])));
+  appliquerOrdre(faits.concat(ids, viseIdx != null ? [viseIdx] : [], reste), faits.length);
+  majTout();
+  toast(ids.length > 1 ? `${ids.length} boîtes sur le chemin : à faire en passant` : 'Une boîte sur le chemin : à faire en passant');
+  manoeuvre = null;
+  return true;
 }
 
 // Distance (m) entre un point et le trajet affiche : sert a voir que je ne le suis plus.
@@ -1327,6 +1375,7 @@ async function boutonTrace(forcerVoiture) {
 function choisirArret(i) {
   if (!T || i == null || etatDe(i)) return;
   E.courant = i;
+  choixManuel = cleStop(T.p[i]);
   majTout();
 }
 // Au premier point GPS, sans voiture enregistree (nouvelle tournee, ou reprise apres « Stopper ») :
