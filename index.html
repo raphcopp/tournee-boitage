@@ -827,13 +827,13 @@ function suivrePosition() {
   if (watchId != null) return;
   if (!('geolocation' in navigator)) { etatGps('Localisation indisponible sur cet appareil'); return; }
   watchId = navigator.geolocation.watchPosition(
-    p => positionner(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
+    p => positionner(p.coords.latitude, p.coords.longitude, p.coords.accuracy, p.coords.heading, p.coords.speed),
     err => etatGps(err.code === 1 ? 'Localisation refusée : autorisez-la pour ce site dans les réglages du téléphone' : 'Position introuvable pour le moment'),
     { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
   garderEcranAllume();
   ecouterBoussole();
 }
-function positionner(lat, lon, acc) {
+function positionner(lat, lon, acc, gpsCap, vitesse) {
   derniere = { lat, lon, acc };
   etatGps('');
   if (!carte) return;
@@ -842,9 +842,12 @@ function positionner(lat, lon, acc) {
     moi = L.marker([lat, lon], { interactive: false, keyboard: false, zIndexOffset: 2000,
       icon: L.divIcon({ className: '', html: '<div class="moi sans-cap"><b></b><i></i></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(carte);
   } else { moi.setLatLng([lat, lon]); halo.setLatLng([lat, lon]).setRadius(acc || 20); }
-  // sans boussole, la direction vient du deplacement (au moins 8 m entre deux points)
+  // En mouvement, la direction vient du deplacement : celle du GPS quand on roule (plus d'environ 4 km/h),
+  // sinon celle entre deux points distants d'au moins 8 m. La boussole ne sert qu'a l'arret.
   const ici = { lat, lon };
-  if (!posPrecedente) posPrecedente = ici;
+  if (typeof vitesse === 'number' && vitesse >= 1.2 && typeof gpsCap === 'number' && !isNaN(gpsCap)) {
+    nouveauCap(gpsCap, 'marche'); posPrecedente = ici;
+  } else if (!posPrecedente) posPrecedente = ici;
   else if (distance(posPrecedente, ici) >= 8) { nouveauCap(relevement(posPrecedente, ici), 'marche'); posPrecedente = ici; }
   if (suivre) carte.panTo([lat, lon], { animate: !cap });
   orienterMoi();
@@ -881,7 +884,7 @@ function regleSuivi(v, avecCap) {
   appliquerCap(true);
 }
 
-let cap = false, orientation = null, dernierCompas = 0, posPrecedente = null, capMinuterie = null, ecouteBoussole = false;
+let cap = false, orientation = null, dernierMouvement = 0, posPrecedente = null, capMinuterie = null, ecouteBoussole = false;
 const ecartAngle = (a, b) => ((b - a + 540) % 360) - 180;
 function relevement(a, b) {
   const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
@@ -890,8 +893,9 @@ function relevement(a, b) {
 }
 function nouveauCap(h, source) {
   if (h == null || isNaN(h)) return;
-  if (source === 'marche' && Date.now() - dernierCompas < 3000) return;  // la boussole prime
-  if (source === 'compas') dernierCompas = Date.now();
+  // le deplacement prime : la boussole (faussee par le moteur, le telephone penche) ne reprend qu'apres 6 s a l'arret
+  if (source === 'compas' && Date.now() - dernierMouvement < 6000) return;
+  if (source === 'marche') dernierMouvement = Date.now();
   const lissage = source === 'compas' ? .25 : .7;
   orientation = orientation == null ? h : (orientation + ecartAngle(orientation, h) * lissage + 360) % 360;
   appliquerCap();
@@ -920,13 +924,23 @@ function orienterMoi() {
   rond.classList.toggle('sans-cap', orientation == null);
   if (orientation != null) rond.querySelector('b').style.transform = `rotate(${orientation + (carte.getBearing ? carte.getBearing() : 0)}deg)`;
 }
+// Android : a plat, le haut du telephone ; tenu debout (plus de 45 degres), la direction de son dos (calcul du W3C).
+function capAndroid(alpha, beta, gamma) {
+  if (typeof beta !== 'number' || typeof gamma !== 'number' || Math.abs(beta) < 45) return (360 - alpha) % 360;
+  const a = rad(alpha), b = rad(beta), g = rad(gamma);
+  const x = -Math.cos(a) * Math.sin(g) - Math.sin(a) * Math.sin(b) * Math.cos(g);
+  const y = -Math.sin(a) * Math.sin(g) + Math.cos(a) * Math.sin(b) * Math.cos(g);
+  let cap = Math.atan(x / y);
+  if (y < 0) cap += Math.PI; else if (x < 0) cap += 2 * Math.PI;
+  return cap * 180 / Math.PI;
+}
 function ecouterBoussole() {
   if (ecouteBoussole) return;
   ecouteBoussole = true;
   const surOrientation = e => {
     let h = null;
     if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;     // iPhone
-    else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;            // Android
+    else if (e.absolute && typeof e.alpha === 'number') h = capAndroid(e.alpha, e.beta, e.gamma);
     if (h == null) return;
     const ecran = (screen.orientation && screen.orientation.angle) || 0;
     nouveauCap((h + ecran) % 360, 'compas');
@@ -1859,7 +1873,8 @@ $('#scanPhoto').onchange = async e => {
 };
 
 // Test sur ordinateur : window.tournee.simuler(lat, lon) ; window.tournee.scannerImage(toile) ; window.tournee.scannerTexte(texte)
-window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere, seuils }),
+window.tournee = { simuler: (lat, lon, acc = 10, gpsCap, vitesse) => positionner(lat, lon, acc, gpsCap, vitesse),
+  boussole: (alpha, beta, gamma) => nouveauCap(capAndroid(alpha, beta, gamma), 'compas'), etat: () => ({ T, E, derniere, seuils }),
   scannerImage: async source => codeScanne(await lireQR(source, source.width, source.height)), scannerTexte: codeScanne };
 
 // Un lien peut arriver au chargement ou dans une page deja ouverte (seul le # change).
