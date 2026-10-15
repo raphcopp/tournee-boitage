@@ -360,10 +360,11 @@ body.plein #btnStopper,#fiche.replie #btnStopper{display:none}
     </div>
     <div id="fin" hidden>
       <div class="medaille"><svg class="ic"><use href="#i-coche"/></svg></div>
-      <h2>Tournée terminée</h2>
+      <h2 id="finTitre">Tournée terminée</h2>
       <p id="finTxt"></p>
       <button class="btn btn-vert" type="button" id="btnFinBilan"><svg class="ic"><use href="#i-partager"/></svg>Envoyer le bilan</button>
       <button class="btn btn-clair" type="button" id="btnRetour" hidden style="margin-top:10px"><svg class="ic"><use href="#i-voiture"/></svg>Retour à la voiture</button>
+      <button class="btn btn-texte" type="button" id="btnReprendre" hidden style="margin-top:6px">Reprendre la tournée</button>
     </div>
   </section>
 </div>
@@ -726,8 +727,20 @@ function majFiche() {
   $('#pourcent').textContent = `${pc} %`;
   $('#jauge').style.width = pc + '%';
   const termine = traites === n;
-  $('#encours').hidden = termine; $('#fin').hidden = !termine;
-  $('#btnRetour').hidden = !(termine && E.voiture && !guidage);
+  const enChemin = retourRestant();
+  const stoppe = !termine && !!E.versVoiture && !enChemin.length;
+  $('#encours').hidden = termine || stoppe; $('#fin').hidden = !(termine || stoppe);
+  $('#finTitre').textContent = stoppe ? 'Tournée stoppée' : 'Tournée terminée';
+  $('#btnReprendre').hidden = !stoppe;
+  $('#btnRetour').hidden = !((termine || stoppe) && E.voiture && !guidage && !E.retourFini);
+  $('#btnStopper').innerHTML = svg(E.versVoiture ? 'voiture' : 'pause') + (E.versVoiture ? 'Aller directement à la voiture' : 'Stopper la tournée');
+  if (stoppe) {
+    $('#finTxt').textContent = `${traites} sur ${pluriel(n, 'arrêt')} ${traites > 1 ? 'faits' : 'fait'}, ${pluriel(faits.length, 'immeuble')} ${faits.length > 1 ? 'déposés' : 'déposé'}. `
+      + (E.retourFini ? 'Vous êtes à la voiture : envoyez le bilan, la suite attend sur le téléphone.' : 'Retour à la voiture, puis envoyez le bilan.');
+    $('#fiche').classList.remove('arrive');
+    calculerGuide(true);
+    return;
+  }
   if (termine) {
     E.courant = null;
     calculerGuide(true);
@@ -736,8 +749,9 @@ function majFiche() {
     return;
   }
   if (E.courant == null || E.courant >= n || etatDe(E.courant)) E.courant = premierRestant();
+  if (enChemin.length && !enChemin.includes(E.courant)) E.courant = enChemin[0];
   const s = T.p[E.courant];
-  $('#surtitre').textContent = `Prochain arrêt · encore ${n - traites}`;
+  $('#surtitre').textContent = enChemin.length ? `Retour à la voiture · encore ${enChemin.length} en chemin` : `Prochain arrêt · encore ${n - traites}`;
   const num = numeroImmeuble(s);
   $('#num').textContent = num;
   $('#num').style.fontSize = num.length > 3 ? '15px' : '';
@@ -752,7 +766,7 @@ function majFiche() {
 }
 
 function majDistance() {
-  if (!T || E.courant == null || !T.p[E.courant]) return;
+  if (!T || (E.versVoiture && !retourRestant().length) || E.courant == null || !T.p[E.courant]) return;
   const s = T.p[E.courant];
   if (!derniere) { $('#distance').textContent = 'Position en attente'; $('#fiche').classList.remove('arrive'); return; }
   const d = distance(derniere, s);
@@ -834,10 +848,18 @@ function positionner(lat, lon, acc) {
   else if (distance(posPrecedente, ici) >= 8) { nouveauCap(relevement(posPrecedente, ici), 'marche'); posPrecedente = ici; }
   if (suivre) carte.panTo([lat, lon], { animate: !cap });
   orienterMoi();
-  // Tournee finie, de retour a la voiture : on le dit et le guidage s'arrete.
-  if (guidage && T && E.courant == null && E.voiture && distance(ici, E.voiture) <= 25) {
-    parler('Vous êtes de retour à la voiture. Bonne fin de journée');
+  // Tournee finie (ou stoppee), de retour a la voiture : on le dit et le guidage s'arrete.
+  const retourVide = E && E.versVoiture && !retourRestant().length;
+  if (guidage && T && (E.courant == null || retourVide) && E.voiture && distance(ici, E.voiture) <= 25) {
     arreterGuide();
+    if (E.versVoiture) {
+      E.retourFini = true;
+      parler('Vous êtes à la voiture. Envoyez le bilan, la tournée vous attend pour la suite', true);
+      if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+      majFiche(); sauver();
+      return;
+    }
+    parler('Vous êtes de retour à la voiture. Bonne fin de journée', true);
     majFiche();
   }
   majDistance();
@@ -977,8 +999,8 @@ function voixFr() {
   const v = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : [];
   return v.find(x => /^fr[-_](CH|FR)/i.test(x.lang)) || v.find(x => /^fr/i.test(x.lang)) || null;
 }
-function parler(texte) {
-  if (!voix || !guidage || !texte || !('speechSynthesis' in window)) return;
+function parler(texte, meme) {
+  if (!voix || (!guidage && !meme) || !texte || !('speechSynthesis' in window)) return;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(texte);
@@ -1110,7 +1132,16 @@ function surveillerEcart(ici) {
 }
 
 // Ou guider : l'arret en cours, ou la voiture quand la tournee est finie.
+// Arrets du retour (choisis a « Stopper ») pas encore faits, dans l'ordre du trajet.
+function retourRestant() {
+  if (!E.versVoiture || !E.retour) return [];
+  const cles = new Set(E.retour);
+  return T.p.map((s, i) => i).filter(i => !etatDe(i) && cles.has(cleStop(T.p[i])));
+}
 function cible() {
+  if (E.versVoiture && E.voiture && !retourRestant().length) {
+    return E.retourFini ? null : { lat: E.voiture.lat, lon: E.voiture.lon, a: 'la voiture', cle: 'voiture' };
+  }
   if (E.courant != null && T.p[E.courant]) { const s = T.p[E.courant]; return { lat: s.lat, lon: s.lon, a: adresseArret(s), cle: cleStop(s) }; }
   if (E.voiture && T.p.every((s, i) => etatDe(i))) return { lat: E.voiture.lat, lon: E.voiture.lon, a: 'la voiture', cle: 'voiture' };
   return null;
@@ -1250,7 +1281,7 @@ async function tracer(voitureIci) {
   const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
   if (!restants.length) { toast('Tous les arrêts sont faits'); return; }
   if (voitureIci || !E.voiture) E.voiture = { lat: derniere.lat, lon: derniere.lon };
-  delete E.pause;
+  delete E.pause; delete E.versVoiture; delete E.retour; delete E.retourFini;
   propose = true;
   const depart = { lat: derniere.lat, lon: derniere.lon }, fin = E.voiture;
   const ordre = ordreBoucle(depart, fin, restants.map(i => T.p[i])).map(k => restants[k]);
@@ -1391,24 +1422,90 @@ async function envoyerBilan() {
 
 // « Stopper la tournee » : les arrets faits restent sur le telephone, le bilan part tout de suite au CRM,
 // la tournee reste ouverte. Pour reprendre : la rouvrir et toucher « Garé ici », la suite part de la voiture.
+// Boites du retour : celles qui bordent le trajet par la route jusqu'a la voiture (a moins de BORD_RETOUR m),
+// dans l'ordre du trajet, chaque rue par son cote droit d'abord. Sans reseau : le long de la ligne droite.
+const BORD_RETOUR = 35;
+async function arretsDuRetour(ici, voiture) {
+  const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
+  if (!restants.length) return [];
+  let ligne = null;
+  try {
+    const ctrl = new AbortController(), minuterie = setTimeout(() => ctrl.abort(), 6000);
+    const url = `${OSRM}${ici.lon.toFixed(6)},${ici.lat.toFixed(6)};${voiture.lon.toFixed(6)},${voiture.lat.toFixed(6)}?overview=full&geometries=geojson`;
+    const j = await (await fetch(url, { signal: ctrl.signal })).json();
+    clearTimeout(minuterie);
+    if (j.code === 'Ok' && j.routes.length) ligne = j.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+  } catch (e) {}
+  if (!ligne) ligne = [[ici.lat, ici.lon], [voiture.lat, voiture.lon]];
+  const pris = restants.filter(i => ecartAuTrajet(T.p[i], ligne) <= BORD_RETOUR);
+  if (!pris.length) return [];
+  return ordreBoucle(ici, voiture, pris.map(i => T.p[i])).map(k => pris[k]);
+}
 async function stopper() {
   if (!T) return;
+  // pendant le retour, le meme bouton laisse tomber les boites restantes du chemin
+  if (E.versVoiture) {
+    if (!retourRestant().length) { toast('Tournée déjà stoppée'); return; }
+    if (!(await demander('Aller directement à la voiture ?', 'Les boîtes du chemin qui restent seront faites à la reprise.', 'Aller à la voiture'))) return;
+    E.retour = [];
+    majTout(); manoeuvre = null; calculerGuide(true);
+    return;
+  }
   const faits = T.p.filter((s, i) => etatDe(i)).length;
+  const ici = derniere ? { lat: derniere.lat, lon: derniere.lon } : null;
+  if (E.voiture && ici) toast('Calcul du retour à la voiture…');
+  const chemin = E.voiture && ici ? await arretsDuRetour(ici, E.voiture) : [];
+  $('#toast').hidden = true;
   const ok = await demander('Stopper la tournée ?',
-    `${faits} sur ${pluriel(T.p.length, 'arrêt')} ${faits > 1 ? 'faits sont gardés' : 'fait est gardé'}. Le bilan part maintenant au CRM. Pour reprendre, rouvrez la tournée et touchez « Garé ici ».`,
-    'Stopper et envoyer le bilan');
+    `${faits} sur ${pluriel(T.p.length, 'arrêt')} ${faits > 1 ? 'faits sont gardés' : 'fait est gardé'}. `
+    + (E.voiture
+      ? `L’appli vous ramène à la voiture${chemin.length ? ` en passant par ${pluriel(chemin.length, 'boîte')} sur le chemin` : ''}. À la voiture, envoyez le bilan.`
+      : 'Le bilan part maintenant au CRM.')
+    + ' Pour reprendre plus tard, rouvrez la tournée et touchez « Garé ici ».',
+    'Stopper la tournée');
   if (!ok) return;
   arreterGuide();
+  clearTimeout(toastMinuterie); $('#toast').hidden = true;
   E.pause = new Date().toISOString();
-  delete E.voiture;
+  propose = true;   // pas de « Garé ici » pendant le retour
+  if (E.voiture) {
+    // les boites du chemin passent juste apres les arrets faits ; le reste attend la reprise
+    const faitsOrdre = faitsDansLOrdre(), pris = new Set(chemin), cles = chemin.map(i => cleStop(T.p[i]));
+    const reste = T.p.map((s, i) => i).filter(i => !etatDe(i) && !pris.has(i));
+    appliquerOrdre(faitsOrdre.concat(chemin, reste), faitsOrdre.length);
+    E.versVoiture = true; E.retourFini = false;
+    E.retour = cles;
+    majTout();
+    toast(chemin.length ? `Retour à la voiture par ${pluriel(chemin.length, 'boîte')} sur le chemin` : 'Retour à la voiture');
+    basculerGuide();
+    majFiche();
+    return;
+  }
+  // voiture jamais indiquee : pas de retour a guider, le bilan part tout de suite
+  majTout();
+  const envoye = await envoyerBilan();
+  if (!$('#bilanTexte').hidden) return;
+  enPause(envoye);
+}
+// Tournee stoppee et voiture rejointe (ou jamais garee) : plus de guidage ni de GPS, la tournee attend sur l'accueil.
+// La voiture est oubliee : a la reprise, « Garé ici » trace la suite depuis le nouvel endroit.
+function enPause(envoye) {
+  const faits = T.p.filter((s, i) => etatDe(i)).length;
+  delete E.versVoiture; delete E.voiture; delete E.retour; delete E.retourFini;
+  E.pause = E.pause || new Date().toISOString();
   propose = false;
   sauver();
-  const envoye = await envoyerBilan();
   if (watchId != null) { try { navigator.geolocation.clearWatch(watchId); } catch (e) {} watchId = null; }
   if (verrouEcran) { try { verrouEcran.release(); } catch (e) {} verrouEcran = null; }
-  if (!$('#bilanTexte').hidden) return;   // bilan affiche a copier a la main : on le laisse a l'ecran
-  accueil('', `Tournée « ${T.nom} » stoppée : ${pluriel(faits, 'arrêt')} ${faits > 1 ? 'gardés' : 'gardé'}. `
-    + (envoye ? 'Bilan envoyé. ' : 'Bilan pas envoyé : touchez Bilan quand vous voulez. ') + 'Touchez la tournée pour reprendre.');
+  accueil('', `Tournée « ${T.nom} » en pause : ${pluriel(faits, 'arrêt')} ${faits > 1 ? 'gardés' : 'gardé'}. `
+    + (envoye === false ? 'Bilan pas envoyé : touchez Bilan quand vous voulez. ' : '') + 'Touchez la tournée pour reprendre.');
+}
+// Reprendre tout de suite, sans etre revenu a la voiture : la suite part d'ici et finit a la voiture.
+function reprendre() {
+  if (!T) return;
+  delete E.versVoiture; delete E.retour; delete E.retourFini;
+  if (guidage) arreterGuide();
+  tracer(false);
 }
 
 // Accueil : les tournees du telephone
@@ -1557,7 +1654,8 @@ $('#btnVoix').onclick = () => {
 };
 // Android charge les voix apres coup : rien a faire, voixFr() les relit a chaque annonce.
 $('#btnOrdre').onclick = () => boutonTrace(false);
-$('#btnRetour').onclick = basculerGuide;
+$('#btnRetour').onclick = () => { basculerGuide(); majFiche(); };
+$('#btnReprendre').onclick = reprendre;
 
 // Volet : un toucher sur la poignee (ou un glisse vers le bas) le replie, il ne reste que l'adresse suivante.
 // Replie, un toucher n'importe ou dessus (ou un glisse vers le haut) le rouvre.
@@ -1605,7 +1703,11 @@ $('#btnFermer').onclick = () => { $('#liste').hidden = true; setTimeout(() => ca
 $('#btnBilan').onclick = envoyerBilan;
 $('#btnStopper').onclick = stopper;
 $('#btnStopperListe').onclick = () => { $('#liste').hidden = true; stopper(); };
-$('#btnFinBilan').onclick = envoyerBilan;
+$('#btnFinBilan').onclick = async () => {
+  const stoppee = E && E.versVoiture && !retourRestant().length;
+  const envoye = await envoyerBilan();
+  if (stoppee && envoye && $('#bilanTexte').hidden) enPause(true);
+};
 $('#tabBilan').onclick = () => { if (T || montrerCarte()) envoyerBilan(); };
 $('#tabTournees').onclick = () => accueil();
 $('#btnQuitter').onclick = () => accueil();
