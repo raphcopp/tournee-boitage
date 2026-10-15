@@ -193,6 +193,10 @@ body.plein #btnPlein{color:var(--primaire)}
 .groupe .a small{display:block;margin-top:1px;font-size:13px;font-weight:400;color:var(--texte-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .groupe li.depose .a,.groupe li.passe .a{color:var(--texte-2)}
 .outils{display:grid;gap:10px;margin-top:20px}
+#btnStopper{margin-top:6px;width:100%;min-height:36px;font-size:14px;opacity:.85}
+body.plein #btnStopper,#fiche.replie #btnStopper{display:none}
+#scanParties{position:absolute;left:24px;right:24px;bottom:calc(150px + env(safe-area-inset-bottom));height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden;z-index:3}
+#scanParties i{display:block;height:100%;width:0;background:#34c759;transition:width .2s}
 #bilanTexte{width:100%;min-height:160px;padding:10px;border:1px solid var(--trait);border-radius:14px;background:var(--surface);color:var(--texte);font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .aide{margin:20px 0 0;padding:12px 14px;border-radius:16px;background:var(--surface);color:var(--texte-2);font-size:14px;line-height:1.45}
 .entete-app{padding:calc(env(safe-area-inset-top) + 12px) 2px 2px}
@@ -313,6 +317,7 @@ body.plein #btnPlein{color:var(--primaire)}
   <symbol id="i-ordre" viewBox="0 0 24 24"><path d="M3 7h3.5l10 10H21"/><path d="M17.5 13.5 21 17l-3.5 3.5"/><path d="M3 17h3.5l2.6-2.6"/><path d="M14 9.6 16.6 7"/><path d="M17.5 3.5 21 7h-3.5"/></symbol>
   <symbol id="i-points" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-corbeille" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5A1.5 1.5 0 0 1 11 3.5h2A1.5 1.5 0 0 1 14.5 5v2M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/></symbol>
   <symbol id="i-carte" viewBox="0 0 24 24"><path d="M9 4.5 3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"/><path d="M9 4.5v13M15 6.5v13"/></symbol>
 </svg>
 
@@ -351,6 +356,7 @@ body.plein #btnPlein{color:var(--primaire)}
         <button id="btnPasser" class="btn btn-clair" type="button"><svg class="ic"><use href="#i-passer"/></svg>Passer</button>
         <button id="btnDepose" class="btn btn-vert" type="button"><svg class="ic"><use href="#i-coche"/></svg>Déposé</button>
       </div>
+      <button id="btnStopper" class="btn btn-texte stopper" type="button"><svg class="ic"><use href="#i-pause"/></svg>Stopper la tournée</button>
     </div>
     <div id="fin" hidden>
       <div class="medaille"><svg class="ic"><use href="#i-coche"/></svg></div>
@@ -378,6 +384,7 @@ body.plein #btnPlein{color:var(--primaire)}
     <div class="outils">
       <button class="btn btn-vert" type="button" id="btnBilan"><svg class="ic"><use href="#i-partager"/></svg>Envoyer le bilan</button>
       <textarea id="bilanTexte" readonly hidden></textarea>
+      <button class="btn btn-clair" type="button" id="btnStopperListe"><svg class="ic"><use href="#i-pause"/></svg>Stopper la tournée, reprendre plus tard</button>
       <button class="btn btn-clair" type="button" id="btnOrdreListe"><svg class="ic"><use href="#i-voiture"/></svg>Je suis garé ici : tracer la tournée</button>
       <button class="btn btn-clair" type="button" id="btnScannerListe"><svg class="ic"><use href="#i-scan"/></svg>Scanner une nouvelle tournée</button>
       <button class="btn btn-texte" type="button" id="btnQuitter">Changer de tournée</button>
@@ -472,6 +479,7 @@ body.plein #btnPlein{color:var(--primaire)}
   </div>
   <div class="viseur"><i class="coin hg"></i><i class="coin hd"></i><i class="coin bg"></i><i class="coin bd"></i><b class="ligne-scan"></b></div>
   <p id="scanTxt"></p>
+  <div id="scanParties" hidden><i></i></div>
   <div class="scanActions">
     <label class="btn btn-verre" for="scanPhoto"><svg class="ic"><use href="#i-photo"/></svg>Prendre une photo du QR code</label>
     <input id="scanPhoto" type="file" accept="image/*" capture="environment" hidden>
@@ -525,6 +533,9 @@ function reprendreCoches(prev, t) {
   const etats = new Map(prev.T.p.map((s, i) => [cle(s), prev.E.etats[i]]));
   const notes = new Map(prev.T.p.map((s, i) => [cle(s), (prev.E.notes || {})[i]]));
   const e = { courant: 0, etats: {}, notes: {} };
+  // ce qui est deja parti au CRM ne repart pas (v8.20)
+  if (prev.E.envoye) e.envoye = prev.E.envoye;
+  if (prev.E.notesEnvoyees) e.notesEnvoyees = prev.E.notesEnvoyees;
   t.p.forEach((s, i) => {
     const x = etats.get(cle(s)); if (x) e.etats[i] = x;
     const n = notes.get(cle(s)); if (n) e.notes[i] = n;
@@ -679,17 +690,31 @@ function icone(i) {
   const texte = s === 'depose' ? '✓' : numeroImmeuble(T.p[i]), l = Math.max(30, 14 + 8 * texte.length);
   return L.divIcon({ className: '', html: `<div class="pin ${cls}">${texte}</div>`, iconSize: [l, 30], iconAnchor: [l / 2, 15] });
 }
+// Une commune entiere fait des centaines de points : on ne refait que ceux qui changent (meme ordre des arrets).
+let marqueursDe = null;
+const etiquette = i => `${etatDe(i) || ''}|${i === E.courant ? 1 : 0}`;
 function dessiner() {
-  marqueurs.forEach(m => m.remove());
-  marqueurs = T.p.map((s, i) => L.marker([s.lat, s.lon], { icon: icone(i), zIndexOffset: i === E.courant ? 1000 : 0 })
-    .addTo(carte).on('click', () => choisirArret(i)));
+  if (marqueursDe === T.p && marqueurs.length === T.p.length) {
+    marqueurs.forEach((m, i) => {
+      const k = etiquette(i);
+      if (m.etiquette !== k) { m.setIcon(icone(i)); m.setZIndexOffset(i === E.courant ? 1000 : 0); m.etiquette = k; }
+    });
+  } else {
+    marqueurs.forEach(m => m.remove());
+    marqueurs = T.p.map((s, i) => {
+      const m = L.marker([s.lat, s.lon], { icon: icone(i), zIndexOffset: i === E.courant ? 1000 : 0 }).addTo(carte).on('click', () => choisirArret(i));
+      m.etiquette = etiquette(i);
+      return m;
+    });
+    marqueursDe = T.p;
+  }
   if (marqueurVoiture) { marqueurVoiture.remove(); marqueurVoiture = null; }
   if (E.voiture) marqueurVoiture = L.marker([E.voiture.lat, E.voiture.lon], { interactive: false, keyboard: false, zIndexOffset: 1500,
     icon: L.divIcon({ className: '', html: `<div class="voiture">${svg('voiture')}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(carte);
   $('#btnOrdre').setAttribute('aria-label', E.voiture ? 'Recalculer le tracé depuis ici' : 'Je suis garé ici : tracer la tournée');
 }
 
-function majTout() { dessiner(); majFiche(); majListe(); sauver(); }
+function majTout() { dessiner(); majFiche(); if (!$('#liste').hidden) majListe(); sauver(); }
 
 function majFiche() {
   const n = T.p.length;
@@ -895,10 +920,11 @@ function autoriserBoussole() {
   } catch (e) {}
   ecouterBoussole();
 }
+let verrouEcran = null;
 async function garderEcranAllume() {
-  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') await navigator.wakeLock.request('screen'); } catch (e) {}
+  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') verrouEcran = await navigator.wakeLock.request('screen'); } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && T) garderEcranAllume(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && T && watchId != null) garderEcranAllume(); });
 
 // Plus de trait de toute la tournee sur la carte (demande de Raphael, 25 sept.) : seul le chemin vert
 // du guidage, jusqu'a l'arret en cours, est dessine. Les traces gardes par les anciennes versions
@@ -1170,16 +1196,24 @@ function ordreBoucle(depart, fin, points) {
   const avant = i => (i === 0 ? depart : sortie(seq[i - 1]));
   const apres = j => (j + 1 < seq.length ? entree(seq[j + 1]) : fin);
   const d = (a, b) => (a && b ? distance(a, b) : 0);
+  // ecart de cote de rue si l'on retourne seq[i..j] : somme cumulee, sinon une commune entiere prend des secondes
+  let cumul = [];
+  const recompter = () => {
+    cumul = [0];
+    seq.forEach(x => cumul.push(cumul[cumul.length - 1] + malCote({ m: x.m, sens: !x.sens }) - malCote(x)));
+  };
+  recompter();
   for (let passe = 0; passe < 25; passe++) {
     let gagne = false;
     for (let i = 0; i < seq.length; i++) {
       for (let j = i; j < seq.length; j++) {
         const actuel = d(avant(i), entree(seq[i])) + d(sortie(seq[j]), apres(j));
-        const cote = seq.slice(i, j + 1).reduce((s, x) => s + malCote({ m: x.m, sens: !x.sens }) - malCote(x), 0);
+        const cote = cumul[j + 1] - cumul[i];
         const retourne = d(avant(i), sortie(seq[j])) + d(entree(seq[i]), apres(j)) + cote;
         if (retourne + 1 < actuel) {
           const bout = seq.slice(i, j + 1).reverse().map(x => ({ m: x.m, sens: !x.sens }));
           seq.splice(i, j - i + 1, ...bout);
+          recompter();
           gagne = true;
         }
       }
@@ -1216,6 +1250,7 @@ async function tracer(voitureIci) {
   const restants = T.p.map((s, i) => i).filter(i => !etatDe(i));
   if (!restants.length) { toast('Tous les arrêts sont faits'); return; }
   if (voitureIci || !E.voiture) E.voiture = { lat: derniere.lat, lon: derniere.lon };
+  delete E.pause;
   propose = true;
   const depart = { lat: derniere.lat, lon: derniere.lon }, fin = E.voiture;
   const ordre = ordreBoucle(depart, fin, restants.map(i => T.p[i])).map(k => restants[k]);
@@ -1249,11 +1284,13 @@ function choisirArret(i) {
   E.courant = i;
   majTout();
 }
-// Au premier point GPS, sans voiture enregistree : on propose de tracer la tournee depuis ici.
+// Au premier point GPS, sans voiture enregistree (nouvelle tournee, ou reprise apres « Stopper ») :
+// on propose de tracer la tournee depuis ici, avec les arrets qui restent.
 function proposerOrdre() {
-  if (propose || !T || !derniere || E.voiture || T.p.some((s, i) => etatDe(i))) return;
+  if (propose || !T || !derniere || E.voiture || premierRestant() == null) return;
   propose = true;
-  toast('Vous êtes garé ? Tracez la tournée depuis ici', () => tracer(true), 'Garé ici');
+  toast(E.pause ? 'Reprise : vous êtes garé ? Tracez la suite depuis ici' : 'Vous êtes garé ? Tracez la tournée depuis ici',
+        () => tracer(true), 'Garé ici');
 }
 
 // Liste, bilan
@@ -1289,39 +1326,97 @@ function majListe() {
   $('#statPasse').textContent = pas;
   $('#statReste').textContent = T.p.length - dep - pas;
 }
-function bilan() {
-  const dep = [], pas = [], reste = [];
-  T.p.forEach((_, i) => (etatDe(i) === 'depose' ? dep : etatDe(i) === 'passe' ? pas : reste).push(i));
+// Ce que le bilan doit envoyer : les arrets faits (et les notes) pas encore partis au CRM, ou tout avec `tout`.
+// Un arret passe de « passe » a « depose » repart, avec son nouvel etat.
+const valeurEnvoi = i => (etatDe(i) === 'depose' ? 'depose' : `passe:${E.etats[i].r || 'Sans raison'}`);
+function aEnvoyer(tout) {
+  const env = (!tout && E.envoye) || {}, nenv = (!tout && E.notesEnvoyees) || {};
+  const dep = [], pas = [], notes = [];
+  T.p.forEach((s, i) => {
+    if (!etatDe(i) || env[cleStop(s)] === valeurEnvoi(i)) return;
+    (etatDe(i) === 'depose' ? dep : pas).push(i);
+  });
+  Object.entries(E.notes || {}).forEach(([i, t]) => { if (t && T.p[i] && nenv[cleStop(T.p[i])] !== t) notes.push([+i, t]); });
+  return { dep, pas, notes, tout: !!tout };
+}
+function marquerEnvoyes(x) {
+  E.envoye = E.envoye || {}; E.notesEnvoyees = E.notesEnvoyees || {};
+  x.dep.concat(x.pas).forEach(i => { E.envoye[cleStop(T.p[i])] = valeurEnvoi(i); });
+  x.notes.forEach(([i, t]) => { E.notesEnvoyees[cleStop(T.p[i])] = t; });
+  E.dernierEnvoi = new Date().toISOString();
+  sauver();
+}
+function bilan(x) {
+  const { dep, pas, notes } = x;
+  const reste = T.p.map((s, i) => i).filter(i => !etatDe(i));
+  const faits = T.p.length - reste.length;
   const proprios = dep.reduce((s, i) => s + T.p[i].b, 0);
-  const notes = Object.entries(E.notes || {}).filter(([, t]) => t);
+  const partiel = reste.length > 0;
+  const suite = !x.tout && Object.keys(E.envoye || {}).length > 0;
   const lignes = [
-    `Bilan tournée ${T.nom} (${T.id})`,
+    `${partiel ? 'Bilan partiel' : 'Bilan'} tournée ${T.nom} (${T.id})${suite ? ', depuis le dernier bilan' : ''}`,
     `Déposé : ${pluriel(dep.length, 'immeuble')}, ${pluriel(proprios, 'propriétaire')}`,
     `Passé : ${pas.length}${pas.length ? ' (' + pas.map(i => `${T.p[i].a} : ${E.etats[i].r || 'sans raison'}`).join(', ') + ')' : ''}`,
-    `Reste : ${reste.length}${reste.length ? ' (' + reste.map(i => T.p[i].a).join(', ') + ')' : ''}`,
+    // une commune entiere : la liste des restes n'est ecrite que si elle est courte
+    `Reste : ${reste.length}${reste.length && reste.length <= 25 ? ' (' + reste.map(i => T.p[i].a).join(', ') + ')' : ''}`,
+    `Au total : ${faits} sur ${pluriel(T.p.length, 'arrêt')} ${faits > 1 ? 'faits' : 'fait'}`,
   ];
   if (notes.length) lignes.push('Notes : ' + notes.map(([i, t]) => `${T.p[i].a} : ${t}`).join(' ; '));
-  // Ligne de données reprise telle quelle par Claude pour mettre le CRM à jour.
+  // Ligne de données reprise telle quelle par le CRM (Importer un bilan) pour mettre les fiches à jour.
   const donnees = { tournee: T.id, depose: dep.flatMap(i => T.p[i].u), passe: {}, notes: [] };
   pas.forEach(i => { const r = E.etats[i].r || 'Sans raison'; (donnees.passe[r] = donnees.passe[r] || []).push(...T.p[i].u); });
   notes.forEach(([i, t]) => donnees.notes.push({ adresse: T.p[i].a, texte: t, uids: T.p[i].u }));
   lignes.push('', 'Pour le CRM : ' + JSON.stringify(donnees));
   return lignes.join('\n');
 }
+// Envoie le bilan (partage du telephone, sinon copie). Vrai s'il est parti : ses arrets ne repartiront plus.
 async function envoyerBilan() {
-  if (!T) return;
-  const txt = bilan();
-  if (navigator.share) {
-    try { await navigator.share({ title: `Bilan tournée ${T.nom}`, text: txt }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  if (!T) return false;
+  let x = aEnvoyer(false);
+  if (!x.dep.length && !x.pas.length && !x.notes.length) {
+    if (!T.p.some((s, i) => etatDe(i))) { toast('Aucun arrêt fait : rien à envoyer'); return false; }
+    if (!(await demander('Rien de nouveau depuis le dernier bilan', 'Renvoyer le bilan complet ? Le CRM recevrait une deuxième fois les mêmes boîtes.', 'Renvoyer tout'))) return false;
+    x = aEnvoyer(true);
   }
-  try { await navigator.clipboard.writeText(txt); toast('Bilan copié, collez-le dans un message'); return; } catch (e) {}
-  $('#liste').hidden = false; $('#bilanTexte').hidden = false; $('#bilanTexte').value = txt; $('#bilanTexte').select();
+  const txt = bilan(x);
+  if (navigator.share) {
+    try { await navigator.share({ title: `Bilan tournée ${T.nom}`, text: txt }); marquerEnvoyes(x); return true; }
+    catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  try { await navigator.clipboard.writeText(txt); marquerEnvoyes(x); toast('Bilan copié, collez-le dans un message'); return true; } catch (e) {}
+  marquerEnvoyes(x);
+  $('#liste').hidden = false; majListe(); $('#bilanTexte').hidden = false; $('#bilanTexte').value = txt; $('#bilanTexte').select();
+  return true;
+}
+
+// « Stopper la tournee » : les arrets faits restent sur le telephone, le bilan part tout de suite au CRM,
+// la tournee reste ouverte. Pour reprendre : la rouvrir et toucher « Garé ici », la suite part de la voiture.
+async function stopper() {
+  if (!T) return;
+  const faits = T.p.filter((s, i) => etatDe(i)).length;
+  const ok = await demander('Stopper la tournée ?',
+    `${faits} sur ${pluriel(T.p.length, 'arrêt')} ${faits > 1 ? 'faits sont gardés' : 'fait est gardé'}. Le bilan part maintenant au CRM. Pour reprendre, rouvrez la tournée et touchez « Garé ici ».`,
+    'Stopper et envoyer le bilan');
+  if (!ok) return;
+  arreterGuide();
+  E.pause = new Date().toISOString();
+  delete E.voiture;
+  propose = false;
+  sauver();
+  const envoye = await envoyerBilan();
+  if (watchId != null) { try { navigator.geolocation.clearWatch(watchId); } catch (e) {} watchId = null; }
+  if (verrouEcran) { try { verrouEcran.release(); } catch (e) {} verrouEcran = null; }
+  if (!$('#bilanTexte').hidden) return;   // bilan affiche a copier a la main : on le laisse a l'ecran
+  accueil('', `Tournée « ${T.nom} » stoppée : ${pluriel(faits, 'arrêt')} ${faits > 1 ? 'gardés' : 'gardé'}. `
+    + (envoye ? 'Bilan envoyé. ' : 'Bilan pas envoyé : touchez Bilan quand vous voulez. ') + 'Touchez la tournée pour reprendre.');
 }
 
 // Accueil : les tournees du telephone
 function accueil(erreur, info) {
   if (document.body.classList.contains('plein')) basculerPlein(false);
   $('#app').hidden = true; $('#liste').hidden = true; $('#accueil').hidden = false;
+  // le dernier « Déposé · Annuler » ne suit pas sur l'accueil (il viserait une tournée qui n'est plus à l'écran)
+  clearTimeout(toastMinuterie); $('#toast').hidden = true;
   $('#erreur').textContent = erreur || ''; $('#erreur').hidden = !erreur;
   $('#info').textContent = info || ''; $('#info').hidden = !info;
   aideInstaller();
@@ -1336,9 +1431,11 @@ function accueil(erreur, info) {
     const nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = x.T.nom;
     const pil = document.createElement('span');
     pil.className = 'pilule' + (traites === n ? ' vert' : traites ? ' bleu' : '');
-    pil.textContent = traites === 0 ? 'À faire' : traites === n ? 'Terminée' : `${Math.round(100 * traites / n)} %`;
+    pil.textContent = traites === 0 ? 'À faire' : traites === n ? 'Terminée'
+      : `${x.E.pause ? 'En pause · ' : ''}${Math.round(100 * traites / n)} %`;
     const etat = document.createElement('span'); etat.className = 'etat';
-    etat.textContent = [dateCourte(x.T.date), pluriel(n, 'immeuble')].filter(Boolean).join(' · ');
+    etat.textContent = [dateCourte(x.T.date), traites && traites < n ? `${traites} sur ${pluriel(n, 'immeuble')}` : pluriel(n, 'immeuble')]
+      .filter(Boolean).join(' · ');
     const barre = document.createElement('span'); barre.className = 'barre-mini';
     const plein = document.createElement('i'); plein.style.width = `${100 * traites / n}%`; barre.appendChild(plein);
     b.append(nom, pil, etat, barre);
@@ -1367,6 +1464,7 @@ function majOnglets() {
 function montrerCarte() {
   if (T) {
     $('#accueil').hidden = true; $('#liste').hidden = true; $('#app').hidden = false;
+    suivrePosition();
     setTimeout(() => carte && carte.invalidateSize(), 50);
     return true;
   }
@@ -1505,6 +1603,8 @@ $('#btnListe').onclick = ouvrirListe;
 $('#tabCarte').onclick = montrerCarte;
 $('#btnFermer').onclick = () => { $('#liste').hidden = true; setTimeout(() => carte && carte.invalidateSize(), 50); };
 $('#btnBilan').onclick = envoyerBilan;
+$('#btnStopper').onclick = stopper;
+$('#btnStopperListe').onclick = () => { $('#liste').hidden = true; stopper(); };
 $('#btnFinBilan').onclick = envoyerBilan;
 $('#tabBilan').onclick = () => { if (T || montrerCarte()) envoyerBilan(); };
 $('#tabTournees').onclick = () => accueil();
@@ -1568,7 +1668,32 @@ async function lireQR(source, largeur, hauteur) {
   }
   return null;
 }
+// Tournee en plusieurs QR codes (commune entiere) : #q=<empreinte>.<rang>.<total>.<bout>. Les QR codes defilent
+// sur l'ecran du PC ; le scanner garde chaque partie lue, dans n'importe quel ordre, et ouvre la tournee a la fin.
+const RE_PARTIE = /[#&]q=([0-9a-f]{6,16})\.(\d{1,3})\.(\d{1,3})\.([A-Za-z0-9_-]+)/;
+let parties = { id: null, n: 0, lues: new Map() };
+function majParties() {
+  const { n, lues } = parties;
+  $('#scanParties').hidden = !n;
+  $('#scanParties i').style.width = n ? `${100 * lues.size / n}%` : '0';
+  if (n) $('#scanTxt').textContent = `Tournée en ${n} QR codes : ${lues.size} sur ${n} lus. Gardez le téléphone devant l’écran du PC`;
+}
+async function partieScannee(id, k, n, bout) {
+  if (parties.id !== id || parties.n !== n) parties = { id, n, lues: new Map() };
+  if (k < 1 || k > n) return false;
+  if (!parties.lues.has(k)) { parties.lues.set(k, bout); if (navigator.vibrate) navigator.vibrate(20); }
+  majParties();
+  if (parties.lues.size < n) return false;
+  const code = Array.from({ length: n }, (_, i) => parties.lues.get(i + 1)).join('');
+  parties = { id: null, n: 0, lues: new Map() };
+  fermerScanner();
+  if (navigator.vibrate) navigator.vibrate(80);
+  try { await ouvrirCode(code); } catch (e) { accueil('QR codes de tournée illisibles ou incomplets : rescannez-les'); }
+  return true;
+}
 async function codeScanne(texte) {
+  const q = String(texte || '').match(RE_PARTIE);
+  if (q) return partieScannee(q[1], +q[2], +q[3], q[4]);
   const m = String(texte || '').match(/[#&]d=([A-Za-z0-9_-]+)/);
   if (!m) { $('#scanTxt').textContent = 'Ce QR code n’est pas une tournée'; return false; }
   fermerScanner();
@@ -1579,6 +1704,7 @@ async function codeScanne(texte) {
 async function ouvrirScanner() {
   $('#toast').hidden = true;
   $('#scanTxt').textContent = 'Agrandissez le QR code sur l’écran du PC, puis placez-le dans le cadre';
+  parties = { id: null, n: 0, lues: new Map() }; majParties();
   $('#scanner').hidden = false;
   chargerZXing().catch(() => {});
   try {
@@ -1601,7 +1727,7 @@ async function boucleScan() {
   while (scanActif) {
     let pause = 250;
     if (v.readyState >= 2 && v.videoWidth) {
-      try { const t = await lireQR(v, v.videoWidth, v.videoHeight); if (t && await codeScanne(t)) return; }
+      try { const t = await lireQR(v, v.videoWidth, v.videoHeight); if (t && await codeScanne(t)) return; if (parties.n) pause = 120; }
       catch (e) { $('#scanTxt').textContent = 'Lecteur de QR code indisponible : vérifiez la connexion'; pause = 2000; }
     }
     await new Promise(r => setTimeout(r, pause));
@@ -1630,12 +1756,17 @@ $('#scanPhoto').onchange = async e => {
   } catch (err) { $('#scanTxt').textContent = 'Photo illisible, réessayez'; }
 };
 
-// Test sur ordinateur : window.tournee.simuler(lat, lon) ; window.tournee.scannerImage(toile)
+// Test sur ordinateur : window.tournee.simuler(lat, lon) ; window.tournee.scannerImage(toile) ; window.tournee.scannerTexte(texte)
 window.tournee = { simuler: (lat, lon, acc = 10) => positionner(lat, lon, acc), etat: () => ({ T, E, derniere, seuils }),
-  scannerImage: async source => codeScanne(await lireQR(source, source.width, source.height)) };
+  scannerImage: async source => codeScanne(await lireQR(source, source.width, source.height)), scannerTexte: codeScanne };
 
 // Un lien peut arriver au chargement ou dans une page deja ouverte (seul le # change).
 async function lireLien() {
+  if (RE_PARTIE.test(location.hash)) {
+    history.replaceState(null, '', location.pathname + location.search);
+    accueil('Cette tournée tient en plusieurs QR codes : ouvrez l’appli Tournée, touchez « Scanner » et gardez le téléphone devant l’écran du PC.');
+    return true;
+  }
   const m = location.hash.match(/[#&]d=([^&]+)/);
   if (!m) return false;
   try {
